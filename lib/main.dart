@@ -11,6 +11,7 @@ import 'ui/device_picker.dart';
 import 'ui/recipe_library.dart';
 import 'ui/scale_selection.dart';
 import 'ui/style.dart';
+import 'ui/weighing_panel.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,11 +47,9 @@ class _BrewScreenState extends State<BrewScreen> {
     isScrollControlled: true,
     builder:
         (_) => BrewSettingsSheet(
-          dose: c.brew.dose,
           ratio: c.brew.ratio,
-          maxWater: c.scale?.info.capacityGrams,
           scaling: c.reference != null,
-          onSave: c.configure,
+          onSave: c.configureRatio,
         ),
   );
   Future<void> _library() => Navigator.push(
@@ -184,9 +183,9 @@ class _BrewScreenState extends State<BrewScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: c.usable && !scale.busy ? c.start : null,
+                          onPressed: c.canStart ? c.start : null,
                           icon: const Icon(Icons.play_arrow_rounded),
-                          label: const Text('추출 시작'),
+                          label: Text(c.starting ? '영점 확인 중…' : '추출 시작'),
                         ),
                       )
                     else if (brew.active)
@@ -232,7 +231,8 @@ class _BrewScreenState extends State<BrewScreen> {
                             Expanded(
                               flex: 3,
                               child: TextButton(
-                                onPressed: scale.busy ? null : c.toggleDemo,
+                                onPressed:
+                                    c.canChangeScale ? c.toggleDemo : null,
                                 child: Text(
                                   c.demo ? '실제 저울로 전환' : '저울 없이 데모로 체험',
                                   style: const TextStyle(
@@ -314,7 +314,7 @@ class _BrewScreenState extends State<BrewScreen> {
                         else
                           TextButton.icon(
                             onPressed:
-                                brew.active || scale.busy
+                                brew.active || scale.busy || c.starting
                                     ? null
                                     : () async {
                                       if (scale.connected) {
@@ -336,7 +336,7 @@ class _BrewScreenState extends State<BrewScreen> {
                           ),
                         IconButton(
                           tooltip: '내 레시피',
-                          onPressed: _library,
+                          onPressed: c.starting ? null : _library,
                           icon: const Icon(Icons.menu_book_outlined, size: 23),
                         ),
                       ],
@@ -353,7 +353,7 @@ class _BrewScreenState extends State<BrewScreen> {
                       const SizedBox(height: 8),
                     ],
                     InkWell(
-                      onTap: c.setup ? _settings : null,
+                      onTap: c.setup && !c.starting ? _settings : null,
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
                         padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
@@ -371,7 +371,9 @@ class _BrewScreenState extends State<BrewScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                '원두 ${number(brew.dose)}g   ·   1:${number(brew.ratio)}',
+                                c.setup
+                                    ? '원두 : 물   1:${number(brew.ratio)}'
+                                    : '원두 ${number(brew.dose)}g   ·   1:${number(brew.ratio)}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -428,83 +430,87 @@ class _BrewScreenState extends State<BrewScreen> {
                         ),
                       ),
                     const SizedBox(height: 14),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Column(
-                        children: [
-                          IntrinsicHeight(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _MetricCell(
-                                    '현재 물량',
-                                    brew.water.toStringAsFixed(1),
-                                    'g',
+                    if (c.setup)
+                      WeighingPanel(controller: c)
+                    else ...[
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Column(
+                          children: [
+                            IntrinsicHeight(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _MetricCell(
+                                      '현재 물량',
+                                      brew.water.toStringAsFixed(1),
+                                      'g',
+                                    ),
                                   ),
-                                ),
-                                const VerticalDivider(
-                                  width: 1,
-                                  indent: 18,
-                                  endIndent: 18,
-                                ),
-                                Expanded(
-                                  child: _MetricCell(
-                                    '목표 물량',
-                                    number(brew.target),
-                                    'g',
+                                  const VerticalDivider(
+                                    width: 1,
+                                    indent: 18,
+                                    endIndent: 18,
                                   ),
-                                ),
-                              ],
+                                  Expanded(
+                                    child: _MetricCell(
+                                      '목표 물량',
+                                      number(brew.target),
+                                      'g',
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const Divider(height: 1, indent: 20, endIndent: 20),
-                          IntrinsicHeight(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _MetricCell(
-                                    '물량 대비',
-                                    brew.percent.toStringAsFixed(1),
-                                    '%',
-                                    highlight: true,
+                            const Divider(height: 1, indent: 20, endIndent: 20),
+                            IntrinsicHeight(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _MetricCell(
+                                      '물량 대비',
+                                      brew.percent.toStringAsFixed(1),
+                                      '%',
+                                      highlight: true,
+                                    ),
                                   ),
-                                ),
-                                const VerticalDivider(
-                                  width: 1,
-                                  indent: 18,
-                                  endIndent: 18,
-                                ),
-                                Expanded(
-                                  child: _MetricCell(
-                                    '유량',
-                                    brew.flow.toStringAsFixed(1),
-                                    'g/s',
+                                  const VerticalDivider(
+                                    width: 1,
+                                    indent: 18,
+                                    endIndent: 18,
                                   ),
-                                ),
-                              ],
+                                  Expanded(
+                                    child: _MetricCell(
+                                      '유량',
+                                      brew.flow.toStringAsFixed(1),
+                                      'g/s',
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    BrewTimer(
-                      seconds: brew.seconds,
-                      phase: brew.phase,
-                      reached: brew.reached,
-                    ),
-                    const SizedBox(height: 14),
-                    BrewChart(
-                      points: brew.points,
-                      reference: c.reference,
-                      target: brew.target,
-                      seconds: brew.seconds,
-                      height:
-                          MediaQuery.sizeOf(context).width < 500 ? 160 : 212,
-                    ),
+                      const SizedBox(height: 12),
+                      BrewTimer(
+                        seconds: brew.seconds,
+                        phase: brew.phase,
+                        reached: brew.reached,
+                      ),
+                      const SizedBox(height: 14),
+                      BrewChart(
+                        points: brew.points,
+                        reference: c.reference,
+                        target: brew.target,
+                        seconds: brew.seconds,
+                        height:
+                            MediaQuery.sizeOf(context).width < 500 ? 160 : 212,
+                      ),
+                    ],
                     if (c.guide != null) ...[
                       const SizedBox(height: 14),
                       _guide(),
@@ -576,15 +582,6 @@ class _BrewScreenState extends State<BrewScreen> {
                                 ),
                               ),
                             ),
-                            if (scale.info.capabilities.tare)
-                              TextButton(
-                                onPressed:
-                                    c.setup && !scale.busy ? scale.tare : null,
-                                child: const Text(
-                                  '영점',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
                           ],
                         ),
                       ),
@@ -592,7 +589,7 @@ class _BrewScreenState extends State<BrewScreen> {
                       const Padding(
                         padding: EdgeInsets.only(top: 18),
                         child: Text(
-                          '서버·드리퍼·원두를 올린 뒤 시작하세요.\n첫 물줄기부터 시간을 기록해요.',
+                          '서버·드리퍼를 올리고 TARE → 원두 계량 → 스타트\n원두량을 기억하고 0g부터 물량을 기록해요.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: muted,

@@ -17,8 +17,10 @@ class BrewController extends ChangeNotifier {
   CoffeeScale? _scale;
   CoffeeScale? get scale => _scale;
   bool changingScale = false;
+  bool starting = false;
+  bool _lastFresh = false;
   bool get canChangeScale =>
-      !brew.active && !changingScale && !(_scale?.busy ?? false);
+      !brew.active && !starting && !changingScale && !(_scale?.busy ?? false);
   final BrewSession brew;
   late final RecipeStore store;
   late final Timer _ticker;
@@ -27,7 +29,7 @@ class BrewController extends ChangeNotifier {
   String? notice;
   String? savedId;
   bool demo = false, demoAuto = false, libraryBusy = false;
-  double demoWeight = 0;
+  double demoWeight = 20;
   bool _alerted = false, _disposed = false;
   DateTime? _lastSample;
   DateTime _lastTick = DateTime.now();
@@ -60,7 +62,14 @@ class BrewController extends ChangeNotifier {
       final now = DateTime.now();
       final dt = now.difference(_lastTick).inMicroseconds / 1000000;
       _lastTick = now;
-      if (!brew.active) return;
+      if (!brew.active) {
+        final fresh = _scale?.fresh ?? false;
+        if (_lastFresh != fresh) {
+          _lastFresh = fresh;
+          _changed();
+        }
+        return;
+      }
       if (demo) {
         if (demoAuto) {
           if (reference != null) {
@@ -87,6 +96,42 @@ class BrewController extends ChangeNotifier {
       !changingScale &&
       (demo || (_scale!.fresh && !_scale!.reading!.overloaded));
   bool get canSave => brew.canSave && savedId == null && !libraryBusy;
+  double? get currentGrams =>
+      demo
+          ? demoWeight
+          : (_scale?.fresh == true ? _scale!.reading!.grams : null);
+  bool get canTare =>
+      setup &&
+      !starting &&
+      !changingScale &&
+      _scale != null &&
+      !_scale!.busy &&
+      (demo ||
+          (_scale!.connected &&
+              _scale!.measurementsReady &&
+              _scale!.info.capabilities.tare));
+  bool get canStart =>
+      setup &&
+      !starting &&
+      usable &&
+      !_scale!.busy &&
+      BrewSession.validate(
+            currentGrams!,
+            brew.ratio,
+            maxWater: _scale!.info.capacityGrams,
+          ) ==
+          null;
+  Future<void> tare() async {
+    if (!canTare) return;
+    notice = null;
+    if (demo) {
+      demoWeight = 0;
+    } else {
+      await _scale!.tare();
+    }
+    _changed();
+  }
+
   PourGuide? get guide =>
       reference == null
           ? null
@@ -137,7 +182,7 @@ class BrewController extends ChangeNotifier {
   }
 
   Future<void> configure(double dose, double ratio) async {
-    if (!setup) return;
+    if (!setup || starting) return;
     final error = BrewSession.validate(
       dose,
       ratio,
@@ -152,12 +197,23 @@ class BrewController extends ChangeNotifier {
     _changed();
   }
 
-  void start() {
+  Future<void> configureRatio(double ratio) async {
+    if (!setup || starting) return;
+    if (!ratio.isFinite || ratio < 1 || ratio > 30) {
+      throw ArgumentError('비율은 1:1~1:30으로 입력해 주세요.');
+    }
+    brew.ratio = ratio;
+    await preferences.setDouble('ratio', ratio);
+    _changed();
+  }
+
+  Future<void> start() async {
     final scale = _scale;
     if (scale == null) return;
-    if (!setup || !usable || scale.busy) return;
+    if (!setup || !usable || scale.busy || starting) return;
+    final measuredDose = currentGrams!;
     final error = BrewSession.validate(
-      brew.dose,
+      measuredDose,
       brew.ratio,
       maxWater: scale.info.capacityGrams,
     );
@@ -166,17 +222,54 @@ class BrewController extends ChangeNotifier {
       _changed();
       return;
     }
-    brew.start(
-      rawGrams: demo ? demoWeight : scale.reading!.grams,
-      dose: brew.dose,
-      ratio: brew.ratio,
-    );
-    _lastSample = scale.lastReading;
-    _lastTick = DateTime.now();
-    savedId = null;
+    starting = true;
     notice = null;
-    _alerted = false;
-    _keepAwake(true);
+    _changed();
+    try {
+      var baseline = measuredDose;
+      if (demo) {
+        demoWeight = 0;
+        baseline = 0;
+      } else if (scale.info.capabilities.tare) {
+        await scale.tare();
+        if (scale.error != null) throw StateError(scale.error!);
+        // The command ACK alone is not proof that the live weight has zeroed.
+        final zeroed = Completer<void>();
+        void checkZero() {
+          if (zeroed.isCompleted) return;
+          if (!scale.connected) {
+            zeroed.completeError(StateError('영점 설정 중 연결이 끊겼습니다.'));
+          } else if (scale.fresh &&
+              !scale.reading!.overloaded &&
+              scale.reading!.grams.abs() <= 0.3) {
+            zeroed.complete();
+          }
+        }
+
+        scale.addListener(checkZero);
+        try {
+          checkZero();
+          await zeroed.future.timeout(const Duration(seconds: 4));
+        } finally {
+          scale.removeListener(checkZero);
+        }
+        if (_disposed) return;
+        baseline = scale.reading!.grams;
+      }
+      if (_disposed) return;
+      reference = reference?.scaled(measuredDose, brew.ratio);
+      brew.start(rawGrams: baseline, dose: measuredDose, ratio: brew.ratio);
+      _lastSample = scale.lastReading;
+      _lastTick = DateTime.now();
+      savedId = null;
+      notice = null;
+      _alerted = false;
+      _keepAwake(true);
+    } catch (e) {
+      notice = '영점을 확인하지 못해 시작하지 않았습니다. 원두 무게를 다시 계량해 주세요. ($e)';
+    } finally {
+      starting = false;
+    }
     _changed();
   }
 
@@ -198,7 +291,7 @@ class BrewController extends ChangeNotifier {
 
   void reset() {
     brew.reset();
-    demoWeight = 0;
+    demoWeight = 20;
     demoAuto = false;
     savedId = null;
     notice = null;
@@ -226,7 +319,7 @@ class BrewController extends ChangeNotifier {
   }
 
   Future<void> loadRecipe(BrewRecipe recipe) async {
-    if (brew.active) return;
+    if (brew.active || starting) return;
     final error = BrewSession.validate(
       recipe.dose,
       recipe.ratio,

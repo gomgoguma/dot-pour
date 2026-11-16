@@ -26,7 +26,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('추출 시작'), findsOneWidget);
       expect(prefs.getString(BrewController.selectedScaleKey), 'timemore-dot');
-      expect(find.text('원두 18g   ·   1:16.7'), findsOneWidget);
+      expect(find.text('원두 : 물   1:16.7'), findsOneWidget);
       await tester.tap(find.byKey(const Key('change-scale')));
       await tester.pumpAndSettle();
       expect(find.text('저울 선택'), findsOneWidget);
@@ -79,12 +79,12 @@ void main() {
         session: BrewSession(now: () => now),
       );
       addTearDown(c.dispose);
-      a.emit(350);
-      c.start();
-      a.emit(351);
-      a.emit(352);
+      a.emit(20);
+      await c.start();
+      a.emit(21);
+      a.emit(22);
       now = const Duration(seconds: 1);
-      a.emit(358);
+      a.emit(28);
       expect(c.brew.water, 8);
       expect(c.brew.flow, greaterThan(0));
       await expectLater(c.selectScale('test-b'), throwsStateError);
@@ -131,8 +131,8 @@ void main() {
       await c.selectScale('large');
       await c.configure(100, 20);
       expect(c.brew.target, 2000);
-      large.emit(0);
-      c.start();
+      large.emit(100);
+      await c.start();
       expect(c.brew.phase, BrewPhase.ready);
       c.finish();
     },

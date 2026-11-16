@@ -4,7 +4,7 @@ import 'package:dot_pour/scales/scale.dart';
 class FakeScale extends CoffeeScale {
   @override
   final ScaleInfo info;
-  FakeScale(String id, {double capacity = 1200})
+  FakeScale(String id, {double capacity = 1200, bool supportsTare = false})
     : info = ScaleInfo(
         id: id,
         manufacturer: 'TEST',
@@ -12,7 +12,7 @@ class FakeScale extends CoffeeScale {
         shortName: id,
         modelCode: id,
         capacityGrams: capacity,
-        capabilities: const ScaleCapabilities(),
+        capabilities: ScaleCapabilities(tare: supportsTare),
       );
   @override
   List<ScaleDevice> devices = [];
@@ -37,6 +37,8 @@ class FakeScale extends CoffeeScale {
   bool disposed = false;
   bool get hasObservers => hasListeners;
   int disconnects = 0;
+  int tares = 0;
+  bool tareFails = false;
 
   void emit(double grams, {double? flow}) {
     connected = true;
@@ -67,7 +69,16 @@ class FakeScale extends CoffeeScale {
   }
 
   @override
-  Future<void> tare() async => throw UnsupportedError('No tare capability');
+  Future<void> tare() async {
+    if (!info.capabilities.tare) throw UnsupportedError('No tare capability');
+    tares++;
+    if (tareFails) {
+      error = 'Tare failed';
+      return;
+    }
+    emit(0);
+  }
+
   @override
   Future<void> disconnect() async {
     disconnects++;

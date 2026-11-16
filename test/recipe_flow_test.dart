@@ -62,7 +62,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 500));
     expect(controller.reference?.name, '테스트 한 잔');
-    expect(find.text('레시피 기준'), findsOneWidget);
+    expect(find.byKey(const Key('weighing-panel')), findsOneWidget);
     expect(controller.brew.phase, BrewPhase.setup);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
@@ -137,7 +137,7 @@ void main() {
       for (final ratio in ['1:9', '1:10', '1:11', '1:15', '1:16.7', '1:17']) {
         expect(find.text(ratio), findsOneWidget);
       }
-      await tester.enterText(find.byKey(const Key('dose-input')), '15');
+      expect(find.byKey(const Key('dose-input')), findsNothing);
       tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       addTearDown(tester.view.resetViewInsets);
       await tester.pump();
@@ -148,7 +148,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(prefs.getDouble('ratio'), 16.7);
-      expect(prefs.getDouble('dose'), 15);
+      expect(prefs.getDouble('dose'), isNull);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },

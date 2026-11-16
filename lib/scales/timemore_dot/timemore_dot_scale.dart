@@ -3,10 +3,31 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
+import 'package:flutter/services.dart';
 import '../scale.dart';
 import 'protocol.dart';
 
 class TimemoreDotScale extends CoffeeScale {
+  final CentralManager Function() _createManager;
+  final bool _requestAuthorization;
+  TimemoreDotScale({
+    CentralManager Function()? createManager,
+    bool? requestAuthorization,
+  }) : _createManager = createManager ?? CentralManager.new,
+       _requestAuthorization = requestAuthorization ?? Platform.isAndroid;
+  static const _platform = MethodChannel('dot_pour/ble_platform');
+  int _scanGeneration = 0;
+  bool _discoveryRequested = false;
+  @override
+  String discoveryStatus = '검색 대기';
+  @override
+  bool get canOpenSettings => Platform.isAndroid || Platform.isIOS;
+  @override
+  Future<void> openSettings() async {
+    _initialize();
+    await _manager!.showAppSettings();
+  }
+
   static const modelInfo = ScaleInfo(
     id: 'timemore-dot',
     manufacturer: 'TIMEMORE',
@@ -65,9 +86,10 @@ class TimemoreDotScale extends CoffeeScale {
 
   void _initialize() {
     if (_manager != null) return;
-    final manager = _manager = CentralManager();
+    final manager = _manager = _createManager();
     _subscriptions.add(
       manager.discovered.listen((event) {
+        if (!_discoveryRequested) return;
         final key = event.peripheral.uuid.toString();
         // Preserve the scan response's name when a later advertisement omits it.
         if (event.advertisement.name != null || !_devices.containsKey(key)) {
@@ -80,6 +102,10 @@ class TimemoreDotScale extends CoffeeScale {
       manager.stateChanged.listen((event) {
         if (event.state != BluetoothLowEnergyState.poweredOn && connected) {
           _lostConnection('블루투스 연결이 끊겼습니다.');
+        }
+        if (event.state != BluetoothLowEnergyState.poweredOn && scanning) {
+          error = '블루투스가 꺼졌거나 권한이 해제되어 검색을 중단했습니다.';
+          unawaited(stopScan());
         }
         _changed();
       }),
@@ -143,29 +169,78 @@ class TimemoreDotScale extends CoffeeScale {
     if (busy || scanning || connected) return;
     busy = true;
     error = null;
+    final generation = ++_scanGeneration;
+    bool current() => !_disposed && generation == _scanGeneration;
+    discoveryStatus = '블루투스 초기화 중';
     _changed();
     try {
       _initialize();
       final manager = _manager!;
-      if (Platform.isAndroid && !await manager.authorize()) {
-        throw StateError('설정에서 근처 기기 / 블루투스 권한을 허용해 주세요.');
-      }
-      // Native initialization and iOS permission prompts are asynchronous.
+      // Android initialize() clears pending authorization callbacks. Wait for
+      // its first state BEFORE requesting permissions, including on first use.
       if (manager.state == BluetoothLowEnergyState.unknown) {
         await manager.stateChanged
             .firstWhere((e) => e.state != BluetoothLowEnergyState.unknown)
             .timeout(const Duration(seconds: 15));
       }
+      if (!current()) return;
+      if (_requestAuthorization &&
+          manager.state == BluetoothLowEnergyState.unauthorized) {
+        discoveryStatus = '근처 기기 권한 확인 중';
+        _changed();
+        if (!await manager.authorize().timeout(const Duration(seconds: 45))) {
+          throw StateError('앱 설정에서 근처 기기 권한을 허용해 주세요.');
+        }
+        if (!current()) return;
+        // The plugin refreshes Android state when the permission dialog closes.
+        if (manager.state == BluetoothLowEnergyState.unauthorized) {
+          await manager.stateChanged
+              .firstWhere(
+                (e) =>
+                    e.state != BluetoothLowEnergyState.unauthorized &&
+                    e.state != BluetoothLowEnergyState.unknown,
+              )
+              .timeout(const Duration(seconds: 5));
+        }
+      }
+      if (!current()) return;
       if (manager.state != BluetoothLowEnergyState.poweredOn) {
-        throw StateError('블루투스를 켜고 앱의 블루투스 권한을 확인해 주세요.');
+        throw StateError(switch (manager.state) {
+          BluetoothLowEnergyState.unsupported =>
+            '이 기기는 Bluetooth LE를 지원하지 않습니다.',
+          BluetoothLowEnergyState.unauthorized => '앱의 블루투스 권한을 허용해 주세요.',
+          _ => '블루투스를 켜고 다시 검색해 주세요.',
+        });
       }
       _devices.clear();
-      await manager.startDiscovery();
+      discoveryStatus = '검색 시작 중';
+      _discoveryRequested = true;
+      _changed();
+      final starting = manager.startDiscovery();
+      // A late native completion after timeout/cancellation must not leak a scan.
+      unawaited(
+        starting
+            .then((_) async {
+              if (!current()) await manager.stopDiscovery();
+            })
+            .catchError((Object _) {}),
+      );
+      await starting.timeout(const Duration(seconds: 8));
+      if (!current()) return;
       scanning = true;
+      discoveryStatus = '주변 기기 검색 중 · 12초';
       _scanTimer = Timer(const Duration(seconds: 12), stopScan);
     } catch (e) {
-      error = '검색 실패: $e';
+      if (current()) {
+        error =
+            e is TimeoutException
+                ? '$discoveryStatus 응답이 지연되었습니다. 앱을 다시 열고 권한을 확인해 주세요.'
+                : '검색 실패: $e';
+        await stopScan();
+        discoveryStatus = '검색을 시작하지 못했습니다';
+      }
     } finally {
+      if (!current() && _discoveryRequested) await stopScan();
       busy = false;
       _changed();
     }
@@ -173,11 +248,16 @@ class TimemoreDotScale extends CoffeeScale {
 
   @override
   Future<void> stopScan() async {
+    ++_scanGeneration;
     _scanTimer?.cancel();
-    if (!scanning) return;
+    final requested = _discoveryRequested;
+    _discoveryRequested = false;
     scanning = false;
+    discoveryStatus = '검색 종료 · ${_devices.length}개 수신';
     try {
-      await _manager?.stopDiscovery();
+      if (requested) {
+        await _manager?.stopDiscovery().timeout(const Duration(seconds: 4));
+      }
     } catch (e) {
       error = '검색 중지 실패: $e';
     }
@@ -217,6 +297,13 @@ class TimemoreDotScale extends CoffeeScale {
       _peripheral = device.peripheral;
       deviceName = device.advertisement.name ?? 'TIMEMORE Dot';
       final manager = _manager!;
+      if (Platform.isWindows) {
+        discoveryStatus = 'Windows 페어링 확인 중';
+        _changed();
+        await _platform
+            .invokeMethod<void>('pair', device.peripheral.uuid.toString())
+            .timeout(const Duration(seconds: 40));
+      }
       await manager
           .connect(device.peripheral)
           .timeout(const Duration(seconds: 15));

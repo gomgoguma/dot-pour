@@ -46,6 +46,14 @@ Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
                                   (value) =>
                                       setSheetState(() => showAll = value),
                             ),
+                            Text(
+                              '${scale.discoveryStatus} · 전체 ${scale.devices.length}개',
+                              style: const TextStyle(
+                                color: muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             if (scale.error != null)
                               Text(
                                 scale.error!,
@@ -58,7 +66,11 @@ Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
                                         child: Text(
                                           scale.scanning
                                               ? '근처 저울을 찾고 있어요…'
-                                              : '전원과 블루투스 권한을 확인해 주세요.',
+                                              : scale.devices.isNotEmpty &&
+                                                  !showAll
+                                              ? '도트로 식별되는 기기가 없습니다.\n모든 BLE 기기 보기를 켜보세요.'
+                                              : '수신된 BLE 기기가 없습니다.\n다른 앱 연결을 끊고 다시 검색해 주세요.',
+                                          textAlign: TextAlign.center,
                                         ),
                                       )
                                       : ListView.builder(
@@ -71,9 +83,6 @@ Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
                                               Icons.bluetooth,
                                             ),
                                             title: Text(device.name),
-                                            subtitle: Text(
-                                              '${device.id}\n${device.rssi} dBm',
-                                            ),
                                             enabled: !scale.busy,
                                             onTap: () async {
                                               await scale.connect(device);
@@ -94,6 +103,11 @@ Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
                               icon: const Icon(Icons.refresh),
                               label: const Text('다시 검색'),
                             ),
+                            if (scale.canOpenSettings)
+                              TextButton(
+                                onPressed: scale.openSettings,
+                                child: const Text('앱 권한 설정 열기'),
+                              ),
                           ],
                         ),
                       ),

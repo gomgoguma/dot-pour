@@ -21,6 +21,9 @@ abstract class CoffeeScale extends ChangeNotifier {
   int? get battery;
   ScaleReading? get reading;
   DateTime? get lastReading;
+  String get discoveryStatus => scanning ? '주변 기기 검색 중' : '검색 대기';
+  bool get canOpenSettings => false;
+  Future<void> openSettings() async {}
 
   Duration get readingTimeout => const Duration(seconds: 2);
   bool get fresh =>

@@ -117,16 +117,13 @@ class DoseRatioFields extends StatelessWidget {
 }
 
 class BrewSettingsSheet extends StatefulWidget {
-  final double dose, ratio;
-  final double? maxWater;
+  final double ratio;
   final bool scaling;
-  final Future<void> Function(double, double) onSave;
+  final Future<void> Function(double) onSave;
   const BrewSettingsSheet({
     super.key,
-    required this.dose,
     required this.ratio,
     required this.onSave,
-    this.maxWater,
     this.scaling = false,
   });
   @override
@@ -134,7 +131,6 @@ class BrewSettingsSheet extends StatefulWidget {
 }
 
 class _BrewSettingsSheetState extends State<BrewSettingsSheet> {
-  late final _dose = TextEditingController(text: number(widget.dose));
   late final _ratio = TextEditingController(text: number(widget.ratio));
   String? error;
   bool busy = false;
@@ -151,16 +147,40 @@ class _BrewSettingsSheetState extends State<BrewSettingsSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          DoseRatioFields(
-            dose: _dose,
-            ratio: _ratio,
-            onChanged: () => setState(() => error = null),
+          const SectionLabel('한 잔의 비율'),
+          TextField(
+            key: const Key('ratio-input'),
+            controller: _ratio,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600),
+            decoration: const InputDecoration(
+              labelText: '원두 : 물',
+              prefixText: '1 : ',
+            ),
+            onChanged: (_) => setState(() => error = null),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final value in ratioPresets)
+                ChoiceChip(
+                  label: Text('1:${number(value)}'),
+                  selected: parseNumber(_ratio.text) == value,
+                  onSelected:
+                      (_) => setState(() {
+                        _ratio.text = number(value);
+                        error = null;
+                      }),
+                ),
+            ],
           ),
           const SizedBox(height: 22),
           Text(
             widget.scaling
-                ? '원두량이나 비율을 바꾸면 레시피의 붓기량도 함께 조정됩니다.'
-                : '한번 정한 값은 다음 추출에도 기억해요.',
+                ? '스타트를 누를 때 계량한 원두량과 이 비율에 맞춰 레시피의 붓기량을 조정해요.'
+                : '원두량은 저울로 계량해요. 스타트를 누르면 목표 물량을 자동 계산해요.',
             style: const TextStyle(color: muted, fontSize: 12),
           ),
           if (error != null)
@@ -174,20 +194,15 @@ class _BrewSettingsSheetState extends State<BrewSettingsSheet> {
                 busy
                     ? null
                     : () async {
-                      final dose = parseNumber(_dose.text),
-                          ratio = parseNumber(_ratio.text);
-                      final validation = BrewSession.validate(
-                        dose,
-                        ratio,
-                        maxWater: widget.maxWater,
-                      );
+                      final ratio = parseNumber(_ratio.text);
+                      final validation = BrewSession.validate(1, ratio);
                       if (validation != null) {
                         setState(() => error = validation);
                         return;
                       }
                       setState(() => busy = true);
                       try {
-                        await widget.onSave(dose, ratio);
+                        await widget.onSave(ratio);
                         if (context.mounted) Navigator.pop(context);
                       } catch (e) {
                         if (mounted) {
@@ -206,7 +221,6 @@ class _BrewSettingsSheetState extends State<BrewSettingsSheet> {
   );
   @override
   void dispose() {
-    _dose.dispose();
     _ratio.dispose();
     super.dispose();
   }
