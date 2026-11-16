@@ -4,11 +4,14 @@ class BrandMark extends StatelessWidget {
   final double size;
   const BrandMark({super.key, this.size = 32});
   @override
-  Widget build(BuildContext context) => Image.asset(
-    'assets/brand/dot-pour-drop.png',
-    width: size,
-    height: size,
-    filterQuality: FilterQuality.high,
-    semanticLabel: 'Dot Pour 물방울 로고',
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(size * 0.23),
+    child: Image.asset(
+      'assets/brand/dot-pour-drops.png',
+      width: size,
+      height: size,
+      filterQuality: FilterQuality.high,
+      semanticLabel: 'Dot Pour 두 물방울 로고',
+    ),
   );
 }

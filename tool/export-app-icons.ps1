@@ -3,15 +3,16 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$logoPath = Join-Path $projectRoot 'assets/brand/dot-pour-drop.png'
+$logoPath = Join-Path $projectRoot 'assets/brand/dot-pour-drops.png'
 $sourceLogo = [System.Drawing.Bitmap]::new($logoPath)
+$launcherBackground = $sourceLogo.GetPixel(0, 0)
 
 function New-IconImage([int]$Size, [bool]$Opaque, [double]$Scale) {
     $format = if ($Opaque) { [System.Drawing.Imaging.PixelFormat]::Format24bppRgb } else { [System.Drawing.Imaging.PixelFormat]::Format32bppArgb }
     $bitmap = [System.Drawing.Bitmap]::new($Size, $Size, $format)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     try {
-        $background = if ($Opaque) { [System.Drawing.Color]::FromArgb(247, 245, 239) } else { [System.Drawing.Color]::Transparent }
+        $background = if ($Opaque) { $launcherBackground } else { [System.Drawing.Color]::Transparent }
         $graphics.Clear($background)
         $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
         $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
@@ -31,9 +32,12 @@ function Write-IconPng([string]$RelativePath, [int]$Size, [bool]$Opaque, [double
 }
 
 try {
+    $backgroundHex = '#{0:X2}{1:X2}{2:X2}' -f $launcherBackground.R, $launcherBackground.G, $launcherBackground.B
+    $colorXml = '<?xml version="1.0" encoding="utf-8"?>' + "`n" + '<resources><color name="launcher_background">' + $backgroundHex + '</color></resources>' + "`n"
+    [System.IO.File]::WriteAllText((Join-Path $projectRoot 'android/app/src/main/res/values/colors.xml'), $colorXml)
     $densities = @{ 'mdpi'=1; 'hdpi'=1.5; 'xhdpi'=2; 'xxhdpi'=3; 'xxxhdpi'=4 }
     foreach ($density in $densities.GetEnumerator()) {
-        Write-IconPng "android/app/src/main/res/mipmap-$($density.Key)/ic_launcher.png" ([int](48 * $density.Value)) $true 0.86
+        Write-IconPng "android/app/src/main/res/mipmap-$($density.Key)/ic_launcher.png" ([int](48 * $density.Value)) $true 1.0
         # Keep the visible drop within the adaptive icon's circular safe area.
         Write-IconPng "android/app/src/main/res/mipmap-$($density.Key)/ic_launcher_foreground.png" ([int](108 * $density.Value)) $false 0.78
     }
@@ -41,7 +45,7 @@ try {
     foreach ($entry in ($contents.images | Sort-Object filename -Unique)) {
         $size = [double]::Parse(($entry.size -split 'x')[0], [System.Globalization.CultureInfo]::InvariantCulture)
         $multiplier = [int](($entry.scale -split 'x')[0])
-        Write-IconPng "ios/Runner/Assets.xcassets/AppIcon.appiconset/$($entry.filename)" ([int]($size * $multiplier)) $true 0.86
+        Write-IconPng "ios/Runner/Assets.xcassets/AppIcon.appiconset/$($entry.filename)" ([int]($size * $multiplier)) $true 1.0
     }
     # ICO with PNG entries for every common Windows shell/window size.
     $sizes = @(16, 24, 32, 48, 64, 128, 256)

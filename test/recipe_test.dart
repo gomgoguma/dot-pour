@@ -127,21 +127,35 @@ void main() {
     time = const Duration(seconds: 50);
     expect(brew.seconds, 25);
   });
-  test('infer distinct pours through a two-second pause', () {
-    final steps = BrewRecipe.inferPours(const [
-      BrewPoint(0, 0, 0),
-      BrewPoint(1, 5, 5),
-      BrewPoint(2, 10, 5),
-      BrewPoint(3, 10, 0),
-      BrewPoint(4, 10, 0),
-      BrewPoint(5, 15, 5),
-      BrewPoint(6, 20, 5),
-    ]);
-    expect(steps.length, 2);
-    expect(steps.first.amount, 10);
-    expect(steps.last.start, 4);
-    expect(steps.last.amount, 10);
-  });
+  for (final gap in [2.0, 4.0, 4.999, 5.0, 8.0]) {
+    test(
+      'a $gap-second pause only splits a pour at five seconds or longer',
+      () {
+        final points = [
+          const BrewPoint(0, 0, 0),
+          const BrewPoint(1, 5, 5),
+          const BrewPoint(2, 10, 5),
+          BrewPoint(2 + gap / 2, 10, 0),
+          BrewPoint(2 + gap, 10, 0),
+          BrewPoint(3 + gap, 15, 5),
+          BrewPoint(4 + gap, 20, 5),
+          BrewPoint(14 + gap, 20, 0),
+        ];
+        final steps = BrewRecipe.inferPours(points);
+        expect(steps.length, gap < 5 ? 1 : 2);
+        expect(steps.fold<double>(0, (sum, step) => sum + step.amount), 20);
+        expect(steps.last.end, closeTo(4 + gap, 0.00001));
+        if (gap < 5) {
+          expect(steps.single.duration, closeTo(4 + gap, 0.00001));
+        } else {
+          expect(steps.first.amount, 10);
+          expect(steps.first.end, 2);
+          expect(steps.last.start, 2 + gap);
+          expect(steps.last.amount, 10);
+        }
+      },
+    );
+  }
   test(
     'library round-trips manual and recorded recipes across a new store',
     () async {

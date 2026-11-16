@@ -1,0 +1,22 @@
+Generated with the built-in image_gen tool; no API/CLI fallback.
+Final image: dot-pour-drops.png (opaque green background and off-white outlines).
+Reference: user's supplied small two-droplet outline image. App name remains Dot Pour.
+The earlier single-droplet asset is retained as a historical design.
+
+Initial prompt:
+Use case: logo-brand
+Asset type: replacement symbol for the Dot Pour coffee app; app name stays Dot Pour.
+Input image 1: visual reference only, the user's small white two-droplet outline mark on black. Reinterpret and clean up this visual idea into a production-quality high-resolution icon.
+Primary request: two overlapping upright water droplets drawn only with bold, smooth, rounded off-white outlines. A smaller droplet is in the front-left, a larger droplet is behind and to the right, extending lower. Preserve the reference's compact asymmetrical pairing and gently pointed tips; interrupt the larger drop's upper-left contour where the smaller drop overlaps it so the silhouettes remain clean. Both interiors stay empty and transparent. No filled droplet bodies.
+Style/medium: simple flat vector-like brand symbol, uniform substantial stroke thickness, rounded joins and stroke caps, very clean edges; legible at 24-32 pixels.
+Composition/framing: square canvas, the paired symbol centered, occupying roughly 78% of canvas height and 72% of width; balanced margins.
+Color palette: solid off-white strokes #F7F5EF. The mark will be displayed on the app's deep forest green #233E36 background, but do not bake a background into this asset.
+Scene/backdrop: truly transparent background with alpha, including both droplet interiors.
+Constraints: symbol only; no text, no name, no border, no additional droplets, no highlights, shading, gradient, shadow, 3D, photo texture, cup, coffee bean or watermark.
+
+Final cleanup/edit prompt:
+Use case: precise-object-edit
+Edit target: the supplied generated two-droplet logo.
+Keep exactly the composition and geometry of the two overlapping droplet OUTLINES: small in front-left, large behind-right, with the large contour interrupted behind the small one. Keep the rounded uniform off-white strokes.
+Required correction: make this a completely CLEAN flat icon. Remove every stray white fleck, speckle, ragged halo, mottled patch and transparency artifact inside the droplets and outside the strokes. Only the TWO smooth continuous outline strokes should be off-white #F7F5EF. All other pixels, including BOTH droplet interiors, all gaps and the entire square background, must be a perfectly uniform solid deep forest green #233E36. The background is intentionally OPAQUE now. No gradient, no texture, no shading, no shadow, no grain. Do not retain any noise from the source.
+High-resolution square production app icon. Balanced margin around the pair, no text or border.

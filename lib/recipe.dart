@@ -227,8 +227,12 @@ class BrewRecipe {
     return recipe;
   }
 
-  /// Segment a recorded curve into pours. Two seconds without positive mass
-  /// increase separates pours; the original trace remains the replay authority.
+  /// A brief repositioning or interruption belongs to the same pour. Only five
+  /// seconds without a qualifying mass increase separates pours. Internal pauses
+  /// stay in that pour's duration; trailing drawdown stays out. The original trace
+  /// remains the replay authority.
+  static const pourSeparationSeconds = 5.0;
+
   static List<PourStep> inferPours(List<BrewPoint> points) {
     final result = <PourStep>[];
     BrewPoint? begin, lastIncrease;
@@ -254,13 +258,14 @@ class BrewRecipe {
       if (dt > 0 &&
           b.grams - a.grams >= 0.1 &&
           (b.grams - a.grams) / dt >= 0.5) {
-        if (lastIncrease != null && a.seconds - lastIncrease!.seconds >= 2) {
+        if (lastIncrease != null &&
+            a.seconds - lastIncrease!.seconds >= pourSeparationSeconds) {
           flush();
         }
         begin ??= a;
         lastIncrease = b;
       } else if (lastIncrease != null &&
-          b.seconds - lastIncrease!.seconds >= 2) {
+          b.seconds - lastIncrease!.seconds >= pourSeparationSeconds) {
         flush();
       }
     }

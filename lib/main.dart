@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'brew_controller.dart';
 import 'brew_session.dart';
 import 'ui/brew_chart.dart';
+import 'ui/brew_timer.dart';
 import 'ui/brand_mark.dart';
 import 'ui/brew_settings.dart';
 import 'ui/device_picker.dart';
@@ -341,14 +342,16 @@ class _BrewScreenState extends State<BrewScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      status,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                    if (!brew.active) ...[
+                      Text(
+                        status,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
+                      const SizedBox(height: 8),
+                    ],
                     InkWell(
                       onTap: c.setup ? _settings : null,
                       borderRadius: BorderRadius.circular(14),
@@ -487,27 +490,13 @@ class _BrewScreenState extends State<BrewScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    SectionLabel(
-                      '추출 그래프',
-                      trailing: Row(
-                        children: [
-                          const Icon(
-                            Icons.timer_outlined,
-                            size: 15,
-                            color: muted,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            clockText(brew.seconds),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 12),
+                    BrewTimer(
+                      seconds: brew.seconds,
+                      phase: brew.phase,
+                      reached: brew.reached,
                     ),
+                    const SizedBox(height: 14),
                     BrewChart(
                       points: brew.points,
                       reference: c.reference,
