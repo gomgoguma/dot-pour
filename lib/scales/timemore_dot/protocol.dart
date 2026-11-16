@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../scale_models.dart';
 
 /// TIMEMORE's framed FFF0 protocol. All multibyte fields are big endian.
 /// See https://github.com/TIMEMORE-COFFEE/open-scale-protocol
@@ -31,6 +32,22 @@ class DotProtocol {
       bytes,
     ).setUint16(bytes.length - 2, crc16(bytes.sublist(0, bytes.length - 2)));
     return bytes;
+  }
+
+  static ScaleReading? readingFromFrame(DotFrame frame) {
+    if (![1, 2].contains(frame.opcode) ||
+        frame.command != 1 ||
+        frame.payload.length != 9) {
+      return null;
+    }
+    final data = ByteData.sublistView(frame.payload);
+    // DOT's gram-mode weight and flow have 0.1 g / 0.1 g/s resolution.
+    return ScaleReading(
+      grams: data.getInt32(0) / 10,
+      flow: data.getInt16(4) / 10,
+      seconds: data.getUint16(6),
+      overloaded: data.getUint8(8) != 0,
+    );
   }
 }
 
@@ -87,29 +104,5 @@ class DotFrameDecoder {
       _buffer.removeRange(0, size);
     }
     return frames;
-  }
-}
-
-class ScaleReading {
-  final double grams;
-  final double flow;
-  final int seconds;
-  final bool overloaded;
-  const ScaleReading(this.grams, this.flow, this.seconds, this.overloaded);
-
-  static ScaleReading? fromFrame(DotFrame frame) {
-    if (![1, 2].contains(frame.opcode) ||
-        frame.command != 1 ||
-        frame.payload.length != 9) {
-      return null;
-    }
-    final data = ByteData.sublistView(frame.payload);
-    // DOT's gram-mode weight and flow have 0.1 g / 0.1 g/s resolution.
-    return ScaleReading(
-      data.getInt32(0) / 10,
-      data.getInt16(4) / 10,
-      data.getUint16(6),
-      data.getUint8(8) != 0,
-    );
   }
 }

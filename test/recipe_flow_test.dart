@@ -21,7 +21,7 @@ void main() {
     tester,
   ) async {
     phone(tester);
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
     final prefs = await SharedPreferences.getInstance();
     var now = Duration.zero;
     final brew = BrewSession(now: () => now);
@@ -127,7 +127,7 @@ void main() {
     'compact settings on a narrow phone use exactly the requested presets',
     (tester) async {
       phone(tester, width: 320);
-      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
       final prefs = await SharedPreferences.getInstance();
       await tester.pumpWidget(DotPourApp(preferences: prefs));
       expect(find.text('남은 물'), findsNothing);

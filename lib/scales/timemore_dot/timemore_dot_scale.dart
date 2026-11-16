@@ -3,36 +3,61 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
-import 'package:flutter/foundation.dart';
+import '../scale.dart';
+import 'protocol.dart';
 
-import 'timemore_protocol.dart';
-
-class DotScale extends ChangeNotifier {
+class TimemoreDotScale extends CoffeeScale {
+  static const modelInfo = ScaleInfo(
+    id: 'timemore-dot',
+    manufacturer: 'TIMEMORE',
+    name: 'Black Mirror Dot',
+    shortName: 'Dot',
+    modelCode: 'TES017',
+    capacityGrams: 1200,
+    capabilities: ScaleCapabilities(tare: true, flow: true, battery: true),
+  );
+  @override
+  ScaleInfo get info => modelInfo;
   CentralManager? _manager;
   final _subscriptions = <StreamSubscription<dynamic>>[];
   final decoder = DotFrameDecoder();
-  final devices = <String, DiscoveredEventArgs>{};
+  final _devices = <String, DiscoveredEventArgs>{};
+  @override
+  List<ScaleDevice> get devices => List.unmodifiable(
+    _devices.values.map(
+      (device) => ScaleDevice(
+        id: device.peripheral.uuid.toString(),
+        name: device.advertisement.name ?? '이름 없는 BLE 기기',
+        rssi: device.rssi,
+        recommended: _likelyDot(device),
+      ),
+    ),
+  );
   final _acks = <int, Completer<bool>>{};
   Peripheral? _peripheral;
   GATTCharacteristic? _write;
   Timer? _scanTimer;
+  @override
   bool scanning = false;
+  @override
   bool busy = false;
+  @override
   bool connected = false;
-  bool gramsConfirmed = false;
+  bool _gramsConfirmed = false;
+  @override
+  bool get measurementsReady => _gramsConfirmed;
+  @override
   String? error;
+  @override
   String deviceName = '';
   String? model;
+  @override
   int? battery;
+  @override
   ScaleReading? reading;
+  @override
   DateTime? lastReading;
   bool _disposed = false;
-
-  bool get fresh =>
-      connected &&
-      gramsConfirmed &&
-      reading != null &&
-      DateTime.now().difference(lastReading!) < const Duration(seconds: 2);
 
   void _changed() {
     if (!_disposed) notifyListeners();
@@ -45,8 +70,8 @@ class DotScale extends ChangeNotifier {
       manager.discovered.listen((event) {
         final key = event.peripheral.uuid.toString();
         // Preserve the scan response's name when a later advertisement omits it.
-        if (event.advertisement.name != null || !devices.containsKey(key)) {
-          devices[key] = event;
+        if (event.advertisement.name != null || !_devices.containsKey(key)) {
+          _devices[key] = event;
           _changed();
         }
       }),
@@ -80,14 +105,14 @@ class DotScale extends ChangeNotifier {
           }
           if ([1, 2].contains(frame.opcode)) {
             if (frame.command == 6 && frame.payload.length == 1) {
-              gramsConfirmed = frame.payload[0] == 0;
-              if (!gramsConfirmed) error = '저울 단위가 g이 아닙니다. 다시 연결해 주세요.';
+              _gramsConfirmed = frame.payload[0] == 0;
+              if (!_gramsConfirmed) error = '저울 단위가 g이 아닙니다. 다시 연결해 주세요.';
             }
             if (frame.command == 5 && frame.payload.length == 2) {
               battery = frame.payload[1].clamp(0, 100);
             }
-            final next = ScaleReading.fromFrame(frame);
-            if (next != null && gramsConfirmed) {
+            final next = DotProtocol.readingFromFrame(frame);
+            if (next != null && _gramsConfirmed) {
               reading = next;
               lastReading = DateTime.now();
             }
@@ -100,7 +125,7 @@ class DotScale extends ChangeNotifier {
 
   void _lostConnection(String message) {
     connected = false;
-    gramsConfirmed = false;
+    _gramsConfirmed = false;
     reading = null;
     lastReading = null;
     _write = null;
@@ -113,6 +138,7 @@ class DotScale extends ChangeNotifier {
     _changed();
   }
 
+  @override
   Future<void> scan() async {
     if (busy || scanning || connected) return;
     busy = true;
@@ -133,7 +159,7 @@ class DotScale extends ChangeNotifier {
       if (manager.state != BluetoothLowEnergyState.poweredOn) {
         throw StateError('블루투스를 켜고 앱의 블루투스 권한을 확인해 주세요.');
       }
-      devices.clear();
+      _devices.clear();
       await manager.startDiscovery();
       scanning = true;
       _scanTimer = Timer(const Duration(seconds: 12), stopScan);
@@ -145,6 +171,7 @@ class DotScale extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> stopScan() async {
     _scanTimer?.cancel();
     if (!scanning) return;
@@ -157,7 +184,7 @@ class DotScale extends ChangeNotifier {
     _changed();
   }
 
-  static bool likelyDot(DiscoveredEventArgs device) {
+  static bool _likelyDot(DiscoveredEventArgs device) {
     final name = (device.advertisement.name ?? '').toLowerCase();
     return name.contains('dot') ||
         name.contains('tes017') ||
@@ -167,8 +194,15 @@ class DotScale extends ChangeNotifier {
         );
   }
 
-  Future<void> connect(DiscoveredEventArgs device) async {
+  @override
+  Future<void> connect(ScaleDevice candidate) async {
     if (busy || connected) return;
+    final device = _devices[candidate.id];
+    if (device == null) {
+      error = '검색 목록에서 기기를 찾지 못했습니다. 다시 검색해 주세요.';
+      _changed();
+      return;
+    }
     busy = true;
     error = null;
     _changed();
@@ -176,7 +210,7 @@ class DotScale extends ChangeNotifier {
       await stopScan();
       reading = null;
       lastReading = null;
-      gramsConfirmed = false;
+      _gramsConfirmed = false;
       model = null;
       battery = null;
       decoder.clear();
@@ -228,7 +262,7 @@ class DotScale extends ChangeNotifier {
       if (!await _sendWrite(6, [0])) {
         throw StateError('저울의 g 단위 설정을 확인하지 못했습니다.');
       }
-      gramsConfirmed = true;
+      _gramsConfirmed = true;
       connected = true;
       await _send(2, 5);
       await _send(2, 6);
@@ -272,6 +306,7 @@ class DotScale extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> tare() async {
     if (busy || !connected) return;
     busy = true;
@@ -290,6 +325,7 @@ class DotScale extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> disconnect() async {
     await stopScan();
     final peripheral = _peripheral;

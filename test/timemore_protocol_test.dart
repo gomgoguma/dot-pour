@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:dot_pour/timemore_protocol.dart';
+import 'package:dot_pour/scales/timemore_dot/protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -33,7 +33,7 @@ void main() {
       final decoder = DotFrameDecoder();
       expect(decoder.add(weight.sublist(0, 7)), isEmpty);
       final reading =
-          ScaleReading.fromFrame(decoder.add(weight.sublist(7)).single)!;
+          DotProtocol.readingFromFrame(decoder.add(weight.sublist(7)).single)!;
       expect(reading.grams, 160);
       expect(reading.flow, 6.5);
       expect(reading.seconds, 30);
@@ -42,7 +42,8 @@ void main() {
       final negative = Uint8List.fromList(weight);
       ByteData.sublistView(negative).setInt32(6, -123);
       ByteData.sublistView(negative).setInt16(10, -15);
-      final signed = ScaleReading.fromFrame(decoder.add(negative).single)!;
+      final signed =
+          DotProtocol.readingFromFrame(decoder.add(negative).single)!;
       expect(signed.grams, -12.3);
       expect(signed.flow, -1.5);
     },
@@ -55,8 +56,14 @@ void main() {
     expect(decoder.rejectedFrames, 1);
   });
   test('do not parse acknowledgements or short payloads as weight', () {
-    expect(ScaleReading.fromFrame(DotFrame(3, 1, Uint8List(9), false)), isNull);
-    expect(ScaleReading.fromFrame(DotFrame(1, 1, Uint8List(8), false)), isNull);
+    expect(
+      DotProtocol.readingFromFrame(DotFrame(3, 1, Uint8List(9), false)),
+      isNull,
+    );
+    expect(
+      DotProtocol.readingFromFrame(DotFrame(1, 1, Uint8List(8), false)),
+      isNull,
+    );
   });
   test('commands have big-endian payload length and CRC', () {
     final bytes = DotProtocol.command(3, 6, [0]);

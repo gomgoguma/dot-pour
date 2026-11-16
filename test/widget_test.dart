@@ -11,7 +11,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(DotPourApp(preferences: preferences));
     final demo = find.text('저울 없이 데모로 체험');

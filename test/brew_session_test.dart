@@ -51,7 +51,8 @@ void main() {
       expect(BrewSession.validate(dose, 16), isNotNull);
     }
     expect(BrewSession.validate(20, 0), isNotNull);
-    expect(BrewSession.validate(100, 30), isNotNull);
+    expect(BrewSession.validate(100, 30, maxWater: 1200), isNotNull);
+    expect(BrewSession.validate(100, 30, maxWater: 3000), isNull);
     expect(BrewSession.validate(18, 16.7), isNull);
   });
 }

@@ -7,6 +7,7 @@ import 'ui/brew_chart.dart';
 import 'ui/brew_settings.dart';
 import 'ui/device_picker.dart';
 import 'ui/recipe_library.dart';
+import 'ui/scale_selection.dart';
 import 'ui/style.dart';
 
 Future<void> main() async {
@@ -45,6 +46,7 @@ class _BrewScreenState extends State<BrewScreen> {
         (_) => BrewSettingsSheet(
           dose: c.brew.dose,
           ratio: c.brew.ratio,
+          maxWater: c.scale?.info.capacityGrams,
           scaling: c.reference != null,
           onSave: c.configure,
         ),
@@ -52,6 +54,12 @@ class _BrewScreenState extends State<BrewScreen> {
   Future<void> _library() => Navigator.push(
     context,
     MaterialPageRoute<void>(builder: (_) => RecipeLibrary(controller: c)),
+  );
+  Future<void> _selectScale() => Navigator.push(
+    context,
+    MaterialPageRoute<void>(
+      builder: (_) => ScaleSelectionScreen(controller: c),
+    ),
   );
   Future<void> _save() async {
     if (!c.canSave) return;
@@ -144,6 +152,10 @@ class _BrewScreenState extends State<BrewScreen> {
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: c,
     builder: (context, _) {
+      final scale = c.scale;
+      if (scale == null) {
+        return ScaleSelectionScreen(controller: c, firstRun: true);
+      }
       final brew = c.brew;
       final status = switch (brew.phase) {
         BrewPhase.setup =>
@@ -170,7 +182,7 @@ class _BrewScreenState extends State<BrewScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: c.usable && !c.scale.busy ? c.start : null,
+                          onPressed: c.usable && !scale.busy ? c.start : null,
                           icon: const Icon(Icons.play_arrow_rounded),
                           label: const Text('추출 시작'),
                         ),
@@ -213,12 +225,44 @@ class _BrewScreenState extends State<BrewScreen> {
                     if (!brew.active)
                       SizedBox(
                         height: 34,
-                        child: TextButton(
-                          onPressed: c.scale.busy ? null : c.toggleDemo,
-                          child: Text(
-                            c.demo ? '데모 종료 · 실제 도트 연결' : '저울 없이 데모로 체험',
-                            style: const TextStyle(fontSize: 11, color: muted),
-                          ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: TextButton(
+                                onPressed: scale.busy ? null : c.toggleDemo,
+                                child: Text(
+                                  c.demo ? '실제 저울로 전환' : '저울 없이 데모로 체험',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: muted,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: TextButton.icon(
+                                key: const Key('change-scale'),
+                                onPressed:
+                                    c.canChangeScale ? _selectScale : null,
+                                icon: const Icon(
+                                  Icons.tune_rounded,
+                                  size: 14,
+                                  color: muted,
+                                ),
+                                label: Text(
+                                  '${scale.info.shortName} · 변경',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: muted,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
@@ -272,26 +316,23 @@ class _BrewScreenState extends State<BrewScreen> {
                         else
                           TextButton.icon(
                             onPressed:
-                                brew.active || c.scale.busy
+                                brew.active || scale.busy
                                     ? null
                                     : () async {
-                                      if (c.scale.connected) {
-                                        await c.scale.disconnect();
+                                      if (scale.connected) {
+                                        await scale.disconnect();
                                       } else {
-                                        await showDevicePicker(
-                                          context,
-                                          c.scale,
-                                        );
+                                        await showDevicePicker(context, scale);
                                       }
                                     },
                             icon: Icon(
-                              c.scale.connected
+                              scale.connected
                                   ? Icons.bluetooth_connected
                                   : Icons.bluetooth,
                               size: 17,
                             ),
                             label: Text(
-                              c.scale.connected ? '연결됨' : '연결',
+                              scale.connected ? '연결됨' : '연결',
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),
@@ -518,7 +559,7 @@ class _BrewScreenState extends State<BrewScreen> {
                         onChanged: c.setDemoWeight,
                       ),
                     ],
-                    if (c.notice != null || (!c.demo && c.scale.error != null))
+                    if (c.notice != null || (!c.demo && scale.error != null))
                       Container(
                         margin: const EdgeInsets.only(top: 12),
                         padding: const EdgeInsets.all(14),
@@ -527,38 +568,37 @@ class _BrewScreenState extends State<BrewScreen> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Text(
-                          c.notice ?? c.scale.error!,
+                          c.notice ?? scale.error!,
                           style: const TextStyle(fontSize: 12, height: 1.5),
                         ),
                       ),
-                    if (!c.demo && c.scale.connected)
+                    if (!c.demo && scale.connected)
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Row(
                           children: [
                             Expanded(
                               child: Text(
-                                c.scale.reading?.overloaded == true
+                                scale.reading?.overloaded == true
                                     ? '저울 용량 초과'
-                                    : !c.scale.fresh
+                                    : !scale.fresh
                                     ? '무게 수신 대기 중…'
-                                    : '저울 ${number(c.scale.reading!.grams)}g${c.scale.battery == null ? '' : '  ·  배터리 ${c.scale.battery}%'}',
+                                    : '저울 ${number(scale.reading!.grams)}g${scale.battery == null ? '' : '  ·  배터리 ${scale.battery}%'}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: muted,
                                 ),
                               ),
                             ),
-                            TextButton(
-                              onPressed:
-                                  c.setup && !c.scale.busy
-                                      ? c.scale.tare
-                                      : null,
-                              child: const Text(
-                                '영점',
-                                style: TextStyle(fontSize: 12),
+                            if (scale.info.capabilities.tare)
+                              TextButton(
+                                onPressed:
+                                    c.setup && !scale.busy ? scale.tare : null,
+                                child: const Text(
+                                  '영점',
+                                  style: TextStyle(fontSize: 12),
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),

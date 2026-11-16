@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../dot_scale.dart';
+import '../scales/scale.dart';
 import 'style.dart';
 
-Future<void> showDevicePicker(BuildContext context, DotScale scale) async {
+Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
   var showAll = false;
   unawaited(scale.scan());
   await showModalBottomSheet<void>(
@@ -17,8 +17,8 @@ Future<void> showDevicePicker(BuildContext context, DotScale scale) async {
                 animation: scale,
                 builder: (context, _) {
                   final devices =
-                      scale.devices.values
-                          .where((d) => showAll || DotScale.likelyDot(d))
+                      scale.devices
+                          .where((d) => showAll || d.recommended)
                           .toList()
                         ..sort((a, b) => b.rssi.compareTo(a.rssi));
                   return SafeArea(
@@ -29,9 +29,9 @@ Future<void> showDevicePicker(BuildContext context, DotScale scale) async {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SectionLabel('도트 연결'),
+                            SectionLabel('${scale.info.shortName} 연결'),
                             const Text(
-                              '도트를 켜고, 연결 중인 다른 앱을 종료해 주세요.',
+                              '저울을 켜고, 연결 중인 다른 앱을 종료해 주세요.',
                               style: TextStyle(color: muted),
                             ),
                             if (scale.scanning || scale.busy) ...[
@@ -57,7 +57,7 @@ Future<void> showDevicePicker(BuildContext context, DotScale scale) async {
                                       ? Center(
                                         child: Text(
                                           scale.scanning
-                                              ? '근처 도트를 찾고 있어요…'
+                                              ? '근처 저울을 찾고 있어요…'
                                               : '전원과 블루투스 권한을 확인해 주세요.',
                                         ),
                                       )
@@ -70,12 +70,9 @@ Future<void> showDevicePicker(BuildContext context, DotScale scale) async {
                                             leading: const Icon(
                                               Icons.bluetooth,
                                             ),
-                                            title: Text(
-                                              device.advertisement.name ??
-                                                  '이름 없는 BLE 기기',
-                                            ),
+                                            title: Text(device.name),
                                             subtitle: Text(
-                                              '${device.peripheral.uuid}\n${device.rssi} dBm',
+                                              '${device.id}\n${device.rssi} dBm',
                                             ),
                                             enabled: !scale.busy,
                                             onTap: () async {

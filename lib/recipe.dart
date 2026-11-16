@@ -152,9 +152,8 @@ class BrewRecipe {
         dose > 100 ||
         !ratio.isFinite ||
         ratio < 1 ||
-        ratio > 30 ||
-        target > 1200) {
-      return '원두량과 비율을 확인해 주세요. 목표는 1,200g 이하여야 합니다.';
+        ratio > 30) {
+      return '원두량은 0.1~100g, 비율은 1:1~1:30으로 입력해 주세요.';
     }
     if (!duration.isFinite || duration <= 0) return '총 추출시간을 입력해 주세요.';
     if (steps.isEmpty && !recorded) return '붓기 단계를 하나 이상 추가해 주세요.';

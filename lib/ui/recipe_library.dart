@@ -253,8 +253,16 @@ class RecipeDetail extends StatelessWidget {
                     controller.brew.active
                         ? null
                         : () async {
-                          await controller.loadRecipe(recipe);
-                          if (context.mounted) Navigator.pop(context, true);
+                          try {
+                            await controller.loadRecipe(recipe);
+                            if (context.mounted) Navigator.pop(context, true);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text('$e')));
+                            }
+                          }
                         },
                 icon: const Icon(Icons.play_arrow_rounded),
                 label: Text(

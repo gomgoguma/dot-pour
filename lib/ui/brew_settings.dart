@@ -118,6 +118,7 @@ class DoseRatioFields extends StatelessWidget {
 
 class BrewSettingsSheet extends StatefulWidget {
   final double dose, ratio;
+  final double? maxWater;
   final bool scaling;
   final Future<void> Function(double, double) onSave;
   const BrewSettingsSheet({
@@ -125,6 +126,7 @@ class BrewSettingsSheet extends StatefulWidget {
     required this.dose,
     required this.ratio,
     required this.onSave,
+    this.maxWater,
     this.scaling = false,
   });
   @override
@@ -174,7 +176,11 @@ class _BrewSettingsSheetState extends State<BrewSettingsSheet> {
                     : () async {
                       final dose = parseNumber(_dose.text),
                           ratio = parseNumber(_ratio.text);
-                      final validation = BrewSession.validate(dose, ratio);
+                      final validation = BrewSession.validate(
+                        dose,
+                        ratio,
+                        maxWater: widget.maxWater,
+                      );
                       if (validation != null) {
                         setState(() => error = validation);
                         return;
