@@ -10,6 +10,7 @@ import 'ui/brew_settings.dart';
 import 'ui/device_picker.dart';
 import 'ui/recipe_library.dart';
 import 'ui/scale_selection.dart';
+import 'ui/scale_status.dart';
 import 'ui/style.dart';
 import 'ui/weighing_panel.dart';
 
@@ -158,6 +159,14 @@ class _BrewScreenState extends State<BrewScreen> {
         return ScaleSelectionScreen(controller: c, firstRun: true);
       }
       final brew = c.brew;
+      if (c.diagnostics.recording) {
+        final sequence = c.diagnostics.sequence;
+        final raw = scale.reading?.grams;
+        final water = brew.water;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          c.diagnostics.frame(sequence, raw: raw, water: water);
+        });
+      }
       final status = switch (brew.phase) {
         BrewPhase.setup =>
           c.reference == null ? '오늘도, 나다운 한 잔.' : '좋았던 한 잔을 다시.',
@@ -314,11 +323,13 @@ class _BrewScreenState extends State<BrewScreen> {
                         else
                           TextButton.icon(
                             onPressed:
-                                brew.active || scale.busy || c.starting
+                                scale.busy ||
+                                        c.starting ||
+                                        (brew.active && !scale.connected)
                                     ? null
                                     : () async {
                                       if (scale.connected) {
-                                        await scale.disconnect();
+                                        await showScaleStatus(context, c);
                                       } else {
                                         await showDevicePicker(context, scale);
                                       }

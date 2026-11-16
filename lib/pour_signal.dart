@@ -8,16 +8,21 @@ class PourSample {
 
 /// Rejects handling transients without a multi-second smoothing buffer.
 /// Normal readings wait for one following sample (100ms on DOT). Suspect
-/// readings never change the accepted mass or silently establish a new zero.
+/// readings never change the accepted mass. After a lift, a coherent returning
+/// load can be moving (pouring); recovery does not require a stationary plateau.
 class PourSignal {
-  static const recoveryTime = Duration(milliseconds: 300);
+  static const recoveryTime = Duration(milliseconds: 200);
   PourSample _accepted = const PourSample(Duration.zero, 0);
+  PourSample _rawAccepted = const PourSample(Duration.zero, 0);
   PourSample? _pending, _previous;
   final List<PourSample> _recovery = [];
+  double _offset = 0;
   bool holding = false;
 
   void reset(Duration at) {
     _accepted = PourSample(at, 0);
+    _rawAccepted = _accepted;
+    _offset = 0;
     _pending = null;
     _previous = null;
     _recovery.clear();
@@ -41,45 +46,72 @@ class PourSignal {
       return null;
     }
     final sample = PourSample(at, grams);
-    final previous = _previous ?? _accepted;
+    final previous = _previous ?? _rawAccepted;
     final dt = math.max(0.0, (at - previous.at).inMicroseconds / 1000000);
     if (!holding &&
-        (grams < _accepted.grams - 2 ||
-            grams < previous.grams - 2 ||
-            grams - previous.grams > math.max(8, 40 * dt))) {
+        (grams < _rawAccepted.grams - 12 ||
+            grams - previous.grams > math.max(12, 60 * dt))) {
       hold();
     }
     _previous = sample;
     if (holding) {
-      // Recovery is conservative: a stable load near the last known water
-      // mass, not a new zero or an arbitrary stable pressure/overload value.
-      if (grams < _accepted.grams - 2 || grams > _accepted.grams + 8) {
+      // Allow plausible water added during handling and a small load shift on
+      // return. Do not accept a removed vessel, a new zero or a large overload.
+      final absentSeconds = math.max(
+        0.0,
+        (at - _rawAccepted.at).inMicroseconds / 1000000,
+      );
+      final lower =
+          _rawAccepted.grams -
+          math.max(12.0, _rawAccepted.grams.abs() * .05).clamp(12.0, 25.0);
+      final upper = _rawAccepted.grams + 12 + 40 * math.min(2, absentSeconds);
+      if (grams < lower ||
+          grams > upper ||
+          (_rawAccepted.grams > 5 && grams <= 2)) {
         _recovery.clear();
         return null;
       }
-      if (_recovery.isNotEmpty &&
-          (_recovery.any((p) => (p.grams - grams).abs() > 0.8) ||
-              at - _recovery.last.at > const Duration(milliseconds: 300))) {
-        _recovery.clear();
+      if (_recovery.isNotEmpty) {
+        final last = _recovery.last;
+        final gap = (at - last.at).inMicroseconds / 1000000;
+        final change = grams - last.grams;
+        if (gap > 2 || change < -2 || change > math.max(4, 40 * gap)) {
+          _recovery.clear();
+        }
       }
       _recovery.add(sample);
-      if (at - _recovery.first.at < recoveryTime) return null;
+      if (_recovery.length < 3 || at - _recovery.first.at < recoveryTime) {
+        return null;
+      }
+      // Keep the known poured amount if the returned load settles slightly
+      // lower. Subsequent additions use this load as their reference. A zero
+      // reset or a large missing mass is deliberately not rebased.
+      if (cumulative && grams + _offset < _accepted.grams) {
+        _offset = _accepted.grams - grams;
+      }
       holding = false;
       _recovery.clear();
       _pending = sample;
+      _rawAccepted = sample;
       _accepted = PourSample(
         at,
-        cumulative ? math.max(_accepted.grams, grams) : math.max(0, grams),
+        cumulative
+            ? math.max(_accepted.grams, grams + _offset)
+            : math.max(0, grams),
       );
       return _accepted;
     }
     final ready = _pending;
     _pending = sample;
     if (ready == null) return null;
+    // A one-sample pressure spike can be dropped without entering a hold.
+    // Small reversals during a normal pour must not wait for pouring to stop.
+    if (ready.grams - grams > 2) return null;
+    _rawAccepted = ready;
     _accepted = PourSample(
       ready.at,
       cumulative
-          ? math.max(_accepted.grams, ready.grams)
+          ? math.max(_accepted.grams, ready.grams + _offset)
           : math.max(0, ready.grams),
     );
     return _accepted;

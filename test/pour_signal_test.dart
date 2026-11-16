@@ -31,6 +31,64 @@ class PourFixture {
 }
 
 void main() {
+  test('a small downward wobble does not wait for the pour to stop', () {
+    final f = PourFixture()..reach(100);
+    f.send(103);
+    f.send(100); // Water moving in the server, not lifting the server.
+    for (var i = 1; i <= 30; i++) {
+      final raw = 100 + i * .6;
+      f.send(raw);
+      expect(f.brew.holdingMeasurement, false);
+      expect(raw - f.brew.water, lessThanOrEqualTo(.61));
+    }
+    f.send(118, repeats: 5);
+    expect(f.brew.water, 118);
+    expect(f.brew.flow, 0);
+  });
+
+  test('putting the server back while pouring resumes without a plateau', () {
+    final f = PourFixture()..reach(160);
+    f.send(-350, repeats: 8);
+    f.send(320); // Landing bounce must not become poured water.
+    for (var raw = 170.0; raw <= 190; raw++) {
+      f.send(raw);
+      if (raw >= 174) expect(f.brew.holdingMeasurement, false);
+    }
+    f.send(190);
+    expect(f.brew.water, 190);
+    expect(f.brew.points.every((p) => p.grams <= 190), true);
+    expect(f.brew.points.any((p) => p.breakBefore), true);
+    f.brew.finish();
+    expect(f.brew.toRecipe('moving return').validate(), isNull);
+  });
+
+  test(
+    'a small settled offset after lifting does not freeze the next pour',
+    () {
+      final f = PourFixture()..reach(160);
+      f.send(-350, repeats: 5);
+      f.send(154, repeats: 5);
+      expect(f.brew.holdingMeasurement, false);
+      expect(f.brew.water, 160);
+      for (var raw = 155.0; raw <= 174; raw++) {
+        f.send(raw);
+      }
+      f.send(174);
+      expect(f.brew.water, 180);
+      expect(f.brew.points.every((p) => p.grams <= 180), true);
+    },
+  );
+
+  test('recovery also works when notifications arrive 400ms apart', () {
+    final f = PourFixture()..reach(160);
+    f.send(-350);
+    for (var i = 0; i < 4; i++) {
+      f.now += const Duration(milliseconds: 300);
+      f.send(160);
+    }
+    expect(f.brew.holdingMeasurement, false);
+  });
+
   test(
     'holding after a display tick cannot insert an out-of-order endpoint',
     () {

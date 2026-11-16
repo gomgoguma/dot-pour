@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'brew_session.dart';
+import 'brew_diagnostics.dart';
 import 'scales/scale.dart';
 import 'scales/scale_registry.dart';
 import 'recipe.dart';
@@ -22,6 +23,8 @@ class BrewController extends ChangeNotifier {
   bool get canChangeScale =>
       !brew.active && !starting && !changingScale && !(_scale?.busy ?? false);
   final BrewSession brew;
+  final diagnostics = BrewDiagnostics();
+  bool _notifiedSinceTick = false;
   late final RecipeStore store;
   late final Timer _ticker;
   List<BrewRecipe> recipes = [];
@@ -87,7 +90,11 @@ class BrewController extends ChangeNotifier {
         interrupt('무게 데이터가 멈췄습니다. 연결을 확인하고 새 추출을 시작해 주세요.');
       }
       brew.tick();
-      _changed();
+      if (!demo && _notifiedSinceTick) {
+        _notifiedSinceTick = false;
+      } else {
+        _changed();
+      }
     });
   }
   bool get setup => brew.phase == BrewPhase.setup;
@@ -144,18 +151,30 @@ class BrewController extends ChangeNotifier {
     if (_disposed || demo) return;
     final scale = _scale;
     if (scale == null) return;
+    final newReading = scale.fresh && _lastSample != scale.lastReading;
     if (brew.active) {
       if (!scale.connected || !scale.measurementsReady) {
         interrupt('연결이 끊겨 추출을 중단했습니다. 다시 연결한 뒤 새로 시작해 주세요.');
-      } else if (scale.fresh && _lastSample != scale.lastReading) {
-        _lastSample = scale.lastReading;
+      } else if (newReading) {
         brew.ingestScaleReading(scale.reading!);
         _targetAlert();
       }
     }
-    // The 100ms display ticker already paints active brews. Process every
-    // notification immediately without rebuilding the whole screen twice.
-    if (!brew.active) _changed();
+    if (newReading) {
+      _lastSample = scale.lastReading;
+      diagnostics.input(
+        raw: scale.reading!.grams,
+        water: brew.water,
+        flow: brew.flow,
+        holding: brew.holdingMeasurement,
+        overloaded: scale.reading!.overloaded,
+        phase: brew.phase.name,
+      );
+    }
+    // Render on the next Flutter frame, rather than waiting for the timer.
+    // The ticker skips its duplicate notification when input already updated UI.
+    _notifiedSinceTick = true;
+    _changed();
   }
 
   void _keepAwake(bool enabled) {
