@@ -33,7 +33,6 @@ void main() {
     final brew = BrewSession()..start(rawGrams: 200, dose: 20, ratio: 16);
     brew.update(199.8);
     expect(brew.percent, 0);
-    expect(brew.vesselRemoved(0), isTrue);
   });
   test('disconnect freezes the brew; a new session takes a new baseline', () {
     final brew = BrewSession()..start(rawGrams: 200, dose: 20, ratio: 16);

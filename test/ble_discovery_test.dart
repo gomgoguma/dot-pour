@@ -4,6 +4,8 @@ import 'package:dot_pour/scales/timemore_dot/timemore_dot_scale.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class TestManager implements CentralManager {
+  @override
+  set logLevel(dynamic value) {}
   final states =
       StreamController<BluetoothLowEnergyStateChangedEventArgs>.broadcast();
   @override

@@ -35,9 +35,8 @@ class DotProtocol {
   }
 
   static ScaleReading? readingFromFrame(DotFrame frame) {
-    if (![1, 2].contains(frame.opcode) ||
-        frame.command != 1 ||
-        frame.payload.length != 9) {
+    // Weight is Notify-only. State replies and write ACKs are never samples.
+    if (frame.opcode != 1 || frame.command != 1 || frame.payload.length != 9) {
       return null;
     }
     final data = ByteData.sublistView(frame.payload);

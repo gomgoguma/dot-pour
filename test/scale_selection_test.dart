@@ -81,9 +81,15 @@ void main() {
       addTearDown(c.dispose);
       a.emit(20);
       await c.start();
+      now = const Duration(milliseconds: 100);
       a.emit(21);
+      now = const Duration(milliseconds: 200);
       a.emit(22);
-      now = const Duration(seconds: 1);
+      now = const Duration(milliseconds: 300);
+      a.emit(27);
+      now = const Duration(milliseconds: 400);
+      a.emit(28);
+      now = const Duration(milliseconds: 500);
       a.emit(28);
       expect(c.brew.water, 8);
       expect(c.brew.flow, greaterThan(0));
@@ -104,6 +110,7 @@ void main() {
       b.emit(50);
       c.start();
       b.emit(55);
+      b.emit(60);
       b.emit(60);
       expect(c.brew.water, 10);
       b.measurementsReady = false;

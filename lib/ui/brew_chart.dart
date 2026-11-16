@@ -147,7 +147,11 @@ class _ChartPainter extends CustomPainter {
           );
       for (final p in reference.skip(1)) {
         final at = location(p);
-        path.lineTo(at.dx, at.dy);
+        if (p.breakBefore) {
+          path.moveTo(at.dx, at.dy);
+        } else {
+          path.lineTo(at.dx, at.dy);
+        }
       }
       final paint =
           Paint()
@@ -164,17 +168,33 @@ class _ChartPainter extends CustomPainter {
       }
     }
     if (points.isNotEmpty) {
-      final path =
-          Path()..moveTo(location(points.first).dx, location(points.first).dy);
+      final path = Path();
+      final fill = Path();
+      var first = location(points.first), last = first;
+      var segment = Path()..moveTo(first.dx, first.dy);
+      void finishSegment() {
+        path.addPath(segment, Offset.zero);
+        fill.addPath(
+          Path.from(segment)
+            ..lineTo(last.dx, bounds.bottom)
+            ..lineTo(first.dx, bounds.bottom)
+            ..close(),
+          Offset.zero,
+        );
+      }
+
       for (final point in points.skip(1)) {
         final at = location(point);
-        path.lineTo(at.dx, at.dy);
+        if (point.breakBefore) {
+          finishSegment();
+          first = at;
+          segment = Path()..moveTo(at.dx, at.dy);
+        } else {
+          segment.lineTo(at.dx, at.dy);
+        }
+        last = at;
       }
-      final fill =
-          Path.from(path)
-            ..lineTo(location(points.last).dx, bounds.bottom)
-            ..lineTo(location(points.first).dx, bounds.bottom)
-            ..close();
+      finishSegment();
       canvas.drawPath(
         fill,
         Paint()
@@ -206,5 +226,11 @@ class _ChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ChartPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _ChartPainter oldDelegate) =>
+      points != oldDelegate.points ||
+      reference != oldDelegate.reference ||
+      target != oldDelegate.target ||
+      seconds != oldDelegate.seconds ||
+      duration != oldDelegate.duration ||
+      labelStyle != oldDelegate.labelStyle;
 }

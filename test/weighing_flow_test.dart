@@ -46,7 +46,10 @@ void main() {
       expect(c.brew.water, 0);
       expect(c.brew.phase, BrewPhase.ready);
       expect(find.byKey(const Key('weighing-panel')), findsNothing);
-      scale.emit(40);
+      for (var grams = 4.0; grams <= 40; grams += 4) {
+        scale.emit(grams);
+      }
+      scale.emit(40); // One following notification validates the final weight.
       await tester.pump();
       expect(c.brew.water, 40);
       await c.tare();

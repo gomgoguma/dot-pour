@@ -440,7 +440,10 @@ class _BrewScreenState extends State<BrewScreen> {
                         ),
                         child: Column(
                           children: [
-                            IntrinsicHeight(
+                            SizedBox(
+                              height:
+                                  84 +
+                                  MediaQuery.textScalerOf(context).scale(16),
                               child: Row(
                                 children: [
                                   Expanded(
@@ -466,7 +469,10 @@ class _BrewScreenState extends State<BrewScreen> {
                               ),
                             ),
                             const Divider(height: 1, indent: 20, endIndent: 20),
-                            IntrinsicHeight(
+                            SizedBox(
+                              height:
+                                  84 +
+                                  MediaQuery.textScalerOf(context).scale(16),
                               child: Row(
                                 children: [
                                   Expanded(
@@ -500,6 +506,7 @@ class _BrewScreenState extends State<BrewScreen> {
                         seconds: brew.seconds,
                         phase: brew.phase,
                         reached: brew.reached,
+                        holdingMeasurement: brew.holdingMeasurement,
                       ),
                       const SizedBox(height: 14),
                       BrewChart(

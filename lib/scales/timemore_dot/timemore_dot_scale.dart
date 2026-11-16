@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:flutter/services.dart';
+import 'package:logging/logging.dart';
 import '../scale.dart';
 import 'protocol.dart';
 
@@ -87,6 +88,7 @@ class TimemoreDotScale extends CoffeeScale {
   void _initialize() {
     if (_manager != null) return;
     final manager = _manager = _createManager();
+    manager.logLevel = Level.WARNING;
     _subscriptions.add(
       manager.discovered.listen((event) {
         if (!_discoveryRequested) return;

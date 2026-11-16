@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dot_pour/scales/timemore_dot/protocol.dart';
+import 'package:dot_pour/scales/scale_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -57,6 +58,10 @@ void main() {
   });
   test('do not parse acknowledgements or short payloads as weight', () {
     expect(
+      DotProtocol.readingFromFrame(DotFrame(2, 1, Uint8List(9), false)),
+      isNull,
+    );
+    expect(
       DotProtocol.readingFromFrame(DotFrame(3, 1, Uint8List(9), false)),
       isNull,
     );
@@ -64,6 +69,21 @@ void main() {
       DotProtocol.readingFromFrame(DotFrame(1, 1, Uint8List(8), false)),
       isNull,
     );
+  });
+  test('stopping flow and timer/state/ACK packets cannot zero the weight', () {
+    final stopped = Uint8List.fromList(weight);
+    ByteData.sublistView(stopped).setInt16(10, 0);
+    final frames = DotFrameDecoder().add([
+      ...weight,
+      ...DotProtocol.command(1, 2, [2]),
+      ...DotProtocol.command(2, 5, [3, 100]),
+      ...DotProtocol.command(3, 0x0d, [1]),
+      ...stopped,
+    ]);
+    final readings =
+        frames.map(DotProtocol.readingFromFrame).whereType<ScaleReading>();
+    expect(readings.map((r) => r.grams), [160, 160]);
+    expect(readings.last.flow, 0);
   });
   test('commands have big-endian payload length and CRC', () {
     final bytes = DotProtocol.command(3, 6, [0]);

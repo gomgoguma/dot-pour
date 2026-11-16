@@ -6,22 +6,28 @@ class BrewTimer extends StatelessWidget {
   final double seconds;
   final BrewPhase phase;
   final bool reached;
+  final bool holdingMeasurement;
   const BrewTimer({
     super.key,
     required this.seconds,
     required this.phase,
     required this.reached,
+    this.holdingMeasurement = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final status = switch (phase) {
-      BrewPhase.setup => '시작을 기다려요',
-      BrewPhase.ready => '첫 물줄기 대기',
-      BrewPhase.pouring => reached ? '목표 물량 도달' : '추출 중',
-      BrewPhase.finished => '추출 완료',
-      BrewPhase.interrupted => '추출 중단',
-    };
+    final status =
+        holdingMeasurement &&
+                (phase == BrewPhase.ready || phase == BrewPhase.pouring)
+            ? '무게 안정 대기 · 기록 유지'
+            : switch (phase) {
+              BrewPhase.setup => '시작을 기다려요',
+              BrewPhase.ready => '첫 물줄기 대기',
+              BrewPhase.pouring => reached ? '목표 물량 도달' : '추출 중',
+              BrewPhase.finished => '추출 완료',
+              BrewPhase.interrupted => '추출 중단',
+            };
     return Semantics(
       label: '추출 시간 ${clockText(seconds)}, $status',
       excludeSemantics: true,

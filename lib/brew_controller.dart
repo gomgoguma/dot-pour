@@ -147,22 +147,15 @@ class BrewController extends ChangeNotifier {
     if (brew.active) {
       if (!scale.connected || !scale.measurementsReady) {
         interrupt('연결이 끊겨 추출을 중단했습니다. 다시 연결한 뒤 새로 시작해 주세요.');
-      } else if (scale.reading?.overloaded == true) {
-        interrupt('저울 용량을 초과했습니다. 추출을 중단했습니다.');
       } else if (scale.fresh && _lastSample != scale.lastReading) {
         _lastSample = scale.lastReading;
-        if (brew.vesselRemoved(scale.reading!.grams)) {
-          interrupt('시작 무게보다 2g 이상 줄었습니다. 용기 위치와 영점을 확인해 주세요.');
-        } else {
-          brew.update(
-            scale.reading!.grams,
-            flowGramsPerSecond: scale.reading!.flow,
-          );
-          _targetAlert();
-        }
+        brew.ingestScaleReading(scale.reading!);
+        _targetAlert();
       }
     }
-    _changed();
+    // The 100ms display ticker already paints active brews. Process every
+    // notification immediately without rebuilding the whole screen twice.
+    if (!brew.active) _changed();
   }
 
   void _keepAwake(bool enabled) {

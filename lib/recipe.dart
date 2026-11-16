@@ -6,14 +6,26 @@ class BrewPoint {
   final double seconds;
   final double grams;
   final double flow;
-  const BrewPoint(this.seconds, this.grams, this.flow);
-  List<num> toJson() => [seconds, grams, flow];
+  final bool breakBefore;
+  const BrewPoint(
+    this.seconds,
+    this.grams,
+    this.flow, {
+    this.breakBefore = false,
+  });
+  List<num> toJson() => [seconds, grams, flow, if (breakBefore) 1];
   factory BrewPoint.fromJson(List<dynamic> value) {
-    if (value.length != 3) throw const FormatException('Invalid point');
+    if (value.length != 3 && value.length != 4) {
+      throw const FormatException('Invalid point');
+    }
+    if (value.length == 4 && value[3] != 1) {
+      throw const FormatException('Invalid point gap');
+    }
     final point = BrewPoint(
       (value[0] as num).toDouble(),
       (value[1] as num).toDouble(),
       (value[2] as num).toDouble(),
+      breakBefore: value.length == 4,
     );
     if (![point.seconds, point.grams, point.flow].every((n) => n.isFinite) ||
         point.seconds < 0 ||
@@ -83,7 +95,9 @@ class BrewRecipe {
   double cumulativeAt(int index) =>
       steps.take(index + 1).fold(0, (sum, step) => sum + gramsFor(step));
 
-  List<BrewPoint> get curve {
+  late final List<BrewPoint> _curve = _makeCurve();
+  List<BrewPoint> get curve => _curve;
+  List<BrewPoint> _makeCurve() {
     if (recorded) return trace;
     final points = <BrewPoint>[const BrewPoint(0, 0, 0)];
     double mass = 0;
@@ -93,7 +107,7 @@ class BrewRecipe {
       points.add(BrewPoint(step.end, mass, gramsFor(step) / step.duration));
     }
     points.add(BrewPoint(duration, mass, 0));
-    return points;
+    return List.unmodifiable(points);
   }
 
   double expectedGrams(double seconds) => interpolate(curve, seconds);
@@ -102,6 +116,7 @@ class BrewRecipe {
     for (var i = 1; i < points.length; i++) {
       final a = points[i - 1], b = points[i];
       if (seconds <= b.seconds) {
+        if (b.breakBefore && seconds < b.seconds) return a.grams;
         if (b.seconds == a.seconds) return b.grams;
         return a.grams +
             (b.grams - a.grams) *
@@ -134,7 +149,12 @@ class BrewRecipe {
       trace:
           trace
               .map(
-                (p) => BrewPoint(p.seconds, p.grams * factor, p.flow * factor),
+                (p) => BrewPoint(
+                  p.seconds,
+                  p.grams * factor,
+                  p.flow * factor,
+                  breakBefore: p.breakBefore,
+                ),
               )
               .toList(),
       duration: duration,
@@ -254,6 +274,10 @@ class BrewRecipe {
 
     for (var i = 1; i < points.length; i++) {
       final a = points[i - 1], b = points[i];
+      if (b.breakBefore) {
+        flush();
+        continue;
+      }
       final dt = b.seconds - a.seconds;
       if (dt > 0 &&
           b.grams - a.grams >= 0.1 &&
