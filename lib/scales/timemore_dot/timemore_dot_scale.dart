@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:flutter/services.dart';
-import 'package:logging/logging.dart';
 import '../scale.dart';
 import 'protocol.dart';
 
@@ -87,68 +86,80 @@ class TimemoreDotScale extends CoffeeScale {
 
   void _initialize() {
     if (_manager != null) return;
-    final manager = _manager = _createManager();
-    manager.logLevel = Level.WARNING;
-    _subscriptions.add(
-      manager.discovered.listen((event) {
-        if (!_discoveryRequested) return;
-        final key = event.peripheral.uuid.toString();
-        // Preserve the scan response's name when a later advertisement omits it.
-        if (event.advertisement.name != null || !_devices.containsKey(key)) {
-          _devices[key] = event;
+    final manager = _createManager();
+    final subscriptions = <StreamSubscription<dynamic>>[];
+    try {
+      subscriptions.add(
+        manager.discovered.listen((event) {
+          if (!_discoveryRequested) return;
+          final key = event.peripheral.uuid.toString();
+          // Preserve the scan response's name when a later advertisement omits it.
+          if (event.advertisement.name != null || !_devices.containsKey(key)) {
+            _devices[key] = event;
+            _changed();
+          }
+        }),
+      );
+      subscriptions.add(
+        manager.stateChanged.listen((event) {
+          if (event.state != BluetoothLowEnergyState.poweredOn && connected) {
+            _lostConnection('블루투스 연결이 끊겼습니다.');
+          }
+          if (event.state != BluetoothLowEnergyState.poweredOn && scanning) {
+            error = '블루투스가 꺼졌거나 권한이 해제되어 검색을 중단했습니다.';
+            unawaited(stopScan());
+          }
           _changed();
-        }
-      }),
-    );
-    _subscriptions.add(
-      manager.stateChanged.listen((event) {
-        if (event.state != BluetoothLowEnergyState.poweredOn && connected) {
-          _lostConnection('블루투스 연결이 끊겼습니다.');
-        }
-        if (event.state != BluetoothLowEnergyState.poweredOn && scanning) {
-          error = '블루투스가 꺼졌거나 권한이 해제되어 검색을 중단했습니다.';
-          unawaited(stopScan());
-        }
-        _changed();
-      }),
-    );
-    _subscriptions.add(
-      manager.connectionStateChanged.listen((event) {
-        if (event.peripheral.uuid == _peripheral?.uuid &&
-            event.state == ConnectionState.disconnected) {
-          _lostConnection('도트와 연결이 끊겼습니다. 다시 연결해 주세요.');
-        }
-      }),
-    );
-    _subscriptions.add(
-      manager.characteristicNotified.listen((event) {
-        if (event.peripheral.uuid != _peripheral?.uuid ||
-            event.characteristic.uuid != UUID.fromString(DotProtocol.notify)) {
-          return;
-        }
-        for (final frame in decoder.add(event.value)) {
-          if (frame.opcode == 3 && frame.payload.length == 1) {
-            final ack = _acks.remove(frame.command);
-            ack?.complete(frame.payload[0] == 1);
+        }),
+      );
+      subscriptions.add(
+        manager.connectionStateChanged.listen((event) {
+          if (event.peripheral.uuid == _peripheral?.uuid &&
+              event.state == ConnectionState.disconnected) {
+            _lostConnection('도트와 연결이 끊겼습니다. 다시 연결해 주세요.');
           }
-          if ([1, 2].contains(frame.opcode)) {
-            if (frame.command == 6 && frame.payload.length == 1) {
-              _gramsConfirmed = frame.payload[0] == 0;
-              if (!_gramsConfirmed) error = '저울 단위가 g이 아닙니다. 다시 연결해 주세요.';
+        }),
+      );
+      subscriptions.add(
+        manager.characteristicNotified.listen((event) {
+          if (event.peripheral.uuid != _peripheral?.uuid ||
+              event.characteristic.uuid !=
+                  UUID.fromString(DotProtocol.notify)) {
+            return;
+          }
+          for (final frame in decoder.add(event.value)) {
+            if (frame.opcode == 3 && frame.payload.length == 1) {
+              final ack = _acks.remove(frame.command);
+              ack?.complete(frame.payload[0] == 1);
             }
-            if (frame.command == 5 && frame.payload.length == 2) {
-              battery = frame.payload[1].clamp(0, 100);
-            }
-            final next = DotProtocol.readingFromFrame(frame);
-            if (next != null && _gramsConfirmed) {
-              reading = next;
-              lastReading = DateTime.now();
+            if ([1, 2].contains(frame.opcode)) {
+              if (frame.command == 6 && frame.payload.length == 1) {
+                _gramsConfirmed = frame.payload[0] == 0;
+                if (!_gramsConfirmed) error = '저울 단위가 g이 아닙니다. 다시 연결해 주세요.';
+              }
+              if (frame.command == 5 && frame.payload.length == 2) {
+                battery = frame.payload[1].clamp(0, 100);
+              }
+              final next = DotProtocol.readingFromFrame(frame);
+              if (next != null && _gramsConfirmed) {
+                reading = next;
+                lastReading = DateTime.now();
+              }
             }
           }
-        }
-        _changed();
-      }),
-    );
+          _changed();
+        }),
+      );
+      // Only reuse the manager once every event listener is installed.
+      // Otherwise a failed initialization can leave later scans silent.
+      _subscriptions.addAll(subscriptions);
+      _manager = manager;
+    } catch (_) {
+      for (final subscription in subscriptions) {
+        unawaited(subscription.cancel());
+      }
+      rethrow;
+    }
   }
 
   void _lostConnection(String message) {
