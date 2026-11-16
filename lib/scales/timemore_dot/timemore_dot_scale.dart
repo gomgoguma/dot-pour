@@ -33,6 +33,18 @@ class TimemoreDotScale extends CoffeeScale {
   Future<Map<String, Object?>> connectionDiagnostics() async =>
       Platform.isAndroid && connected ? await readAndroidLinkDiagnostics() : {};
 
+  @override
+  Future<Map<String, Object?>> beginDiagnosticCapture() async =>
+      Platform.isAndroid && connected
+          ? await readAndroidLinkDiagnostics(method: 'capture_start')
+          : {};
+
+  @override
+  Future<Map<String, Object?>> endDiagnosticCapture() async =>
+      Platform.isAndroid
+          ? await readAndroidLinkDiagnostics(method: 'capture_stop')
+          : {};
+
   static const modelInfo = ScaleInfo(
     id: 'timemore-dot',
     manufacturer: 'TIMEMORE',

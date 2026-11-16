@@ -62,7 +62,10 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
     });
     try {
       final c = widget.controller;
-      final connection = await c.scale!.connectionDiagnostics();
+      final connection =
+          c.diagnostics.connectionCapture == null
+              ? await c.scale!.connectionDiagnostics()
+              : <String, Object?>{};
       final report = DiagnosticReport(
         full: c.diagnostics.export(
           version: version,
@@ -156,7 +159,10 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
       final scale = c.scale!;
       final diagnostic = c.diagnostics;
       final canExport =
-          diagnostic.count > 0 && !diagnostic.recording && !exporting;
+          diagnostic.count > 0 &&
+          !diagnostic.recording &&
+          !exporting &&
+          !c.diagnosticBusy;
       return SafeArea(
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -192,7 +198,7 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
                   title: const Text('반응속도 진단'),
                   children: [
                     const Text(
-                      '기록 시작 후 계량·추출을 진행하세요. 기록을 중지하면 전체 파일 저장·공유 또는 요약 복사가 가능합니다.',
+                      '계량·추출 중 전달 시간과 화면 처리 시간을 자동 기록합니다. 기록을 중지한 뒤 진단 파일을 저장하거나 공유하세요.',
                       style: TextStyle(fontSize: 12, height: 1.5),
                     ),
                     const SizedBox(height: 12),
@@ -225,29 +231,23 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
                     const SizedBox(height: 12),
                     FilledButton.tonal(
                       onPressed:
-                          exporting
+                          exporting || c.diagnosticBusy
                               ? null
-                              : () => setState(() {
-                                copied = false;
-                                exportMessage = null;
-                                if (diagnostic.recording) {
-                                  diagnostic.stop();
-                                } else {
-                                  diagnostic.start();
-                                }
-                              }),
+                              : () async {
+                                setState(() {
+                                  copied = false;
+                                  exportMessage = null;
+                                });
+                                await c.toggleDiagnostics();
+                              },
                       child: Text(
-                        diagnostic.recording ? '기록 중지' : '새 진단 기록 시작',
+                        c.diagnosticBusy
+                            ? '진단 처리 중…'
+                            : diagnostic.recording
+                            ? '기록 중지'
+                            : '새 진단 기록 시작',
                       ),
                     ),
-                    if (diagnostic.recording)
-                      OutlinedButton(
-                        onPressed:
-                            () => setState(
-                              () => diagnostic.mark('physical-action'),
-                            ),
-                        child: const Text('물건을 올리거나 내린 시점 표시'),
-                      ),
                     if (Platform.isAndroid)
                       OutlinedButton.icon(
                         key: const Key('save-diagnostic-file'),

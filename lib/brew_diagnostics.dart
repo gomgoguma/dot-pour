@@ -13,6 +13,8 @@ class BrewDiagnostics {
 
   static const capacity = 1200;
   final _events = ListQueue<Map<String, Object?>>();
+  final _renderings = ListQueue<List<double>>();
+  Map<String, Object?>? connectionCapture;
   bool recording = false;
   Duration _started = Duration.zero;
   int _sequence = 0, _presented = 0;
@@ -23,6 +25,8 @@ class BrewDiagnostics {
 
   void start() {
     _events.clear();
+    _renderings.clear();
+    connectionCapture = null;
     _started = _now();
     // Keep IDs monotonic so a queued frame from a previous capture cannot be
     // mistaken for a frame belonging to this new recording.
@@ -83,6 +87,37 @@ class BrewDiagnostics {
     _add('frame', {'seq': sequence, 'raw_g': raw, 'water_g': water});
   }
 
+  void rendering({
+    required Duration build,
+    required Duration raster,
+    required Duration total,
+  }) {
+    if (!recording) return;
+    if (_renderings.length == 600) _renderings.removeFirst();
+    _renderings.add([
+      build.inMicroseconds / 1000,
+      raster.inMicroseconds / 1000,
+      total.inMicroseconds / 1000,
+    ]);
+  }
+
+  Map<String, Object?> get _renderingSummary => {
+    // Engine reports are batched (about once a second in release). They are
+    // not paired to individual input samples or physical display scanout.
+    'scope':
+        'Last 600 engine timings delivered while recording; batched, may include earlier frames or omit the last batch',
+    'build_ms': _statistics(_renderings.map((v) => v[0]).toList()),
+    'raster_ms': _statistics(_renderings.map((v) => v[1]).toList()),
+    'total_span_ms': _statistics(_renderings.map((v) => v[2]).toList()),
+  };
+
+  Map<String, Object?> _connectionFields(Map<String, Object?> current) => {
+    if (connectionCapture != null)
+      'connection_capture_at_stop': connectionCapture
+    else if (current.isNotEmpty)
+      'connection_snapshot_at_export': current,
+  };
+
   String export({
     required String version,
     required String platform,
@@ -91,7 +126,8 @@ class BrewDiagnostics {
     'app': 'Dot Pour',
     'version': version,
     'platform': platform,
-    if (connection.isNotEmpty) 'connection_snapshot_at_export': connection,
+    ..._connectionFields(connection),
+    'flutter_rendering': _renderingSummary,
     'timing': 'App receipt and Flutter frame completion; not sensor timestamps',
     'events': _events.toList(),
   });
@@ -130,7 +166,8 @@ class BrewDiagnostics {
       'held_input_count': held,
       'app_receipt_interval_ms': _statistics(intervals),
       'receipt_to_flutter_frame_ms': _statistics(frameDelays),
-      if (connection.isNotEmpty) 'connection_snapshot_at_export': connection,
+      ..._connectionFields(connection),
+      'flutter_rendering': _renderingSummary,
       'timing':
           'App receipt and Flutter frame completion; not sensor timestamps',
     });

@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 
 /// Optional statistics from the app's pinned Android BLE implementation.
 /// A missing diagnostic channel must not affect weighing or connectivity.
-Future<Map<String, Object?>> readAndroidLinkDiagnostics() async {
+Future<Map<String, Object?>> readAndroidLinkDiagnostics({
+  String method = 'snapshot',
+}) async {
   try {
     return await const MethodChannel('dot_pour/ble_latency')
-            .invokeMapMethod<String, Object?>('snapshot')
+            .invokeMapMethod<String, Object?>(method)
             .timeout(const Duration(seconds: 1)) ??
         {};
   } on MissingPluginException {

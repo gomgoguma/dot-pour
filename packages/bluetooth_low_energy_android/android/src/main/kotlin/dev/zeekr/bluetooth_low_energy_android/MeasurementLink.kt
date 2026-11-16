@@ -16,6 +16,19 @@ internal class MeasurementLink(
     private var count = 0L
     private var streaming = false
     private var requestAccepted: Boolean? = null
+    private var capture: DeliveryWindow? = null
+
+    fun beginCapture() { capture?.stop(); capture = DeliveryWindow(nowNs) }
+
+    fun endCapture(): Map<String, Any?> {
+        val window = capture ?: return mapOf("available" to false)
+        window.stop()
+        capture = null
+        return window.snapshot() + mapOf(
+            "requested_priority" to if (streaming) "high" else "balanced",
+            "priority_request_accepted" to requestAccepted,
+        )
+    }
 
     fun setStreaming(enabled: Boolean) {
         streaming = enabled
@@ -27,13 +40,13 @@ internal class MeasurementLink(
         }
     }
 
-    fun notification(value: ByteArray, receivedAtNs: Long) {
+    fun notification(value: ByteArray, receivedAtNs: Long): ((Boolean) -> Unit)? {
         // Stats cover complete weight notifications only, excluding command
         // replies/ACKs. This does not alter the application's packet decoder.
         if (value.size != 17 || value[0] != 0xA5.toByte() ||
             value[1] != 0x5A.toByte() || value[2] != 1.toByte() ||
             value[3] != 1.toByte() || value[4] != 0.toByte() ||
-            value[5] != 9.toByte()) return
+            value[5] != 9.toByte()) return null
         val previous = lastReceiptNs
         if (previous != null && receivedAtNs >= previous) {
             append(intervals, (receivedAtNs - previous) / 1_000_000.0)
@@ -41,6 +54,7 @@ internal class MeasurementLink(
         append(dispatchDelays, (nowNs() - receivedAtNs).coerceAtLeast(0) / 1_000_000.0)
         lastReceiptNs = receivedAtNs
         count++
+        return capture?.notification(receivedAtNs)
     }
 
     fun snapshot(): Map<String, Any?> = mapOf(

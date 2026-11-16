@@ -41,6 +41,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     private val mDevices: MutableMap<String, BluetoothDevice>
     private val mGATTs: MutableMap<String, BluetoothGatt>
     private val measurementLinks = mutableMapOf<String, MeasurementLink>()
+    private var captureLinks = emptyList<MeasurementLink>()
     private val measurementUUID = java.util.UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
 
     fun measurementLinkSnapshot(): Map<String, Any?> = mapOf(
@@ -48,6 +49,26 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
         "scope" to "complete_weight_notifications",
         "links" to measurementLinks.values.map { it.snapshot() },
     )
+
+    fun beginMeasurementCapture(): Map<String, Any?> {
+        captureLinks.forEach { it.endCapture() }
+        captureLinks = measurementLinks.values.toList()
+        captureLinks.forEach { it.beginCapture() }
+        return mapOf("available" to captureLinks.isNotEmpty())
+    }
+
+    fun endMeasurementCapture(): Map<String, Any?> {
+        // Retain original link objects even if the scale disconnected meanwhile.
+        val snapshots = captureLinks.map { it.endCapture() }
+        captureLinks = emptyList()
+        return mapOf(
+            "source" to "android_gatt_callback",
+            "scope" to "recording_window; last 600 samples per statistic",
+            "timing" to "Native callback through Dart notification handler and reply; roundtrip upper bound, not sensor latency",
+            "available" to snapshots.isNotEmpty(),
+            "links" to snapshots,
+        )
+    }
 
     private fun measurementLink(gatt: BluetoothGatt): MeasurementLink =
         measurementLinks.getOrPut(gatt.device.address) {
@@ -589,12 +610,14 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
 
     fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, receivedAtNs: Long) {
         val device = gatt.device
-        if (characteristic.uuid == measurementUUID) {
+        val replyTiming = if (characteristic.uuid == measurementUUID) {
             measurementLinks[device.address]?.notification(value, receivedAtNs)
-        }
+        } else null
         val peripheralArgs = device.toPeripheralArgs()
         val characteristicArgs = characteristic.toArgs()
-        mAPI.onCharacteristicNotified(peripheralArgs, characteristicArgs, value) {}
+        mAPI.onCharacteristicNotified(peripheralArgs, characteristicArgs, value) { result ->
+            replyTiming?.invoke(result.isSuccess)
+        }
     }
 
     fun onDescriptorRead(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int, value: ByteArray) {

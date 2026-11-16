@@ -3,6 +3,51 @@ import 'package:dot_pour/brew_diagnostics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('rendering is bounded and frozen with connection results at stop', () {
+    final capture = BrewDiagnostics()..start();
+    for (var i = 0; i < 700; i++) {
+      capture.rendering(
+        build: const Duration(milliseconds: 2),
+        raster: const Duration(milliseconds: 900),
+        total: const Duration(milliseconds: 1000),
+      );
+    }
+    capture.stop();
+    capture.connectionCapture = {
+      'links': [
+        {
+          'platform_channel_roundtrip_ms': {'max': 1000},
+        },
+      ],
+    };
+    final saved = capture.export(version: 'test', platform: 'android');
+    capture.rendering(
+      build: Duration.zero,
+      raster: Duration.zero,
+      total: Duration.zero,
+    );
+    final data = jsonDecode(saved);
+    expect(data['flutter_rendering']['raster_ms']['count'], 600);
+    expect(data['flutter_rendering']['raster_ms']['max'], 900);
+    expect(data['flutter_rendering']['total_span_ms']['max'], 1000);
+    expect(
+      capture.export(
+        version: 'test',
+        platform: 'android',
+        connection: {'later': true},
+      ),
+      saved,
+    );
+    expect(data.containsKey('connection_snapshot_at_export'), false);
+    capture.start();
+    expect(capture.connectionCapture, isNull);
+    expect(
+      jsonDecode(
+        capture.summary(version: 'test', platform: 'android'),
+      )['flutter_rendering']['raster_ms']['count'],
+      0,
+    );
+  });
   test('capture is opt-in, bounded, and stops without changing the export', () {
     var now = Duration.zero;
     final capture = BrewDiagnostics(now: () => now);

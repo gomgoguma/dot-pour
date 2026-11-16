@@ -12,6 +12,20 @@ void main() {
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
   test(
+    'native capture uses explicit start and stop without changing the BLE subscription',
+    () async {
+      final calls = <String>[];
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        return {'available': true};
+      });
+      await readAndroidLinkDiagnostics(method: 'capture_start');
+      await readAndroidLinkDiagnostics(method: 'capture_stop');
+      expect(calls, ['capture_start', 'capture_stop']);
+    },
+  );
+
+  test(
     'native interval and dispatch timing are retained in diagnostic export',
     () async {
       messenger.setMockMethodCallHandler(channel, (call) async {

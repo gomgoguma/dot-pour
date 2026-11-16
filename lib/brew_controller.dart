@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'brew_session.dart';
@@ -26,6 +27,9 @@ class BrewController extends ChangeNotifier {
   final BrewSession brew;
   final bool demoAvailable;
   final diagnostics = BrewDiagnostics();
+  bool diagnosticBusy = false;
+  CoffeeScale? _diagnosticScale;
+  bool _watchingTimings = false;
   bool _notifiedSinceTick = false;
   late final RecipeStore store;
   late final Timer _ticker;
@@ -149,6 +153,66 @@ class BrewController extends ChangeNotifier {
           : PourGuide(reference!, brew.seconds, brew.water);
   void _changed() {
     if (!_disposed) notifyListeners();
+  }
+
+  void _renderTimings(List<FrameTiming> timings) {
+    for (final timing in timings) {
+      diagnostics.rendering(
+        build: timing.buildDuration,
+        raster: timing.rasterDuration,
+        total: timing.totalSpan,
+      );
+    }
+  }
+
+  void _stopRenderTimings() {
+    if (!_watchingTimings) return;
+    SchedulerBinding.instance.removeTimingsCallback(_renderTimings);
+    _watchingTimings = false;
+  }
+
+  Future<void> toggleDiagnostics() async {
+    if (diagnosticBusy || _disposed) return;
+    diagnosticBusy = true;
+    _changed();
+    try {
+      if (diagnostics.recording) {
+        diagnostics.stop();
+        _stopRenderTimings();
+        final source = _diagnosticScale;
+        _diagnosticScale = null;
+        diagnostics.connectionCapture =
+            await source?.endDiagnosticCapture() ?? {};
+      } else {
+        diagnostics.start();
+        _diagnosticScale = _scale;
+        SchedulerBinding.instance.addTimingsCallback(_renderTimings);
+        _watchingTimings = true;
+        final start = await _diagnosticScale?.beginDiagnosticCapture() ?? {};
+        if (_disposed) {
+          await _diagnosticScale?.endDiagnosticCapture();
+          return;
+        }
+        diagnostics.mark(
+          start['available'] == true
+              ? 'native_capture_started'
+              : 'native_capture_unavailable',
+        );
+      }
+    } catch (_) {
+      // Optional diagnostics must not interrupt weighing or lose app events.
+      if (diagnostics.recording) {
+        diagnostics.mark('native_capture_start_failed');
+      } else {
+        diagnostics.connectionCapture = {
+          'available': false,
+          'reason': 'capture_stop_failed',
+        };
+      }
+    } finally {
+      diagnosticBusy = false;
+      _changed();
+    }
   }
 
   void _onScale() {
@@ -425,6 +489,15 @@ class BrewController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _stopRenderTimings();
+    diagnostics.stop();
+    if (_diagnosticScale != null && !diagnosticBusy) {
+      unawaited(
+        _diagnosticScale!.endDiagnosticCapture().catchError(
+          (Object _) => <String, Object?>{},
+        ),
+      );
+    }
     _ticker.cancel();
     _scale?.removeListener(_onScale);
     _scale?.dispose();

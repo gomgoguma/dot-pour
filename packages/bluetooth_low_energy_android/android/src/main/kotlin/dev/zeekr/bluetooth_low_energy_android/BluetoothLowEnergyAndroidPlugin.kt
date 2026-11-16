@@ -20,10 +20,11 @@ class BluetoothLowEnergyAndroidPlugin : FlutterPlugin, ActivityAware {
         MyPeripheralManagerHostAPI.setUp(binaryMessenger, mPeripheralManager)
         latencyChannel = MethodChannel(binaryMessenger, "dot_pour/ble_latency").also { channel ->
             channel.setMethodCallHandler { call, result ->
-                if (call.method == "snapshot") {
-                    result.success(mCentralManager.measurementLinkSnapshot())
-                } else {
-                    result.notImplemented()
+                when (call.method) {
+                    "snapshot" -> result.success(mCentralManager.measurementLinkSnapshot())
+                    "capture_start" -> result.success(mCentralManager.beginMeasurementCapture())
+                    "capture_stop" -> result.success(mCentralManager.endMeasurementCapture())
+                    else -> result.notImplemented()
                 }
             }
         }

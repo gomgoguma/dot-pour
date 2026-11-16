@@ -26,6 +26,10 @@ abstract class CoffeeScale extends ChangeNotifier {
   Future<void> openSettings() async {}
   Future<Map<String, Object?>> connectionDiagnostics() async => {};
 
+  /// Optional transport timing. Unsupported adapters keep normal weighing.
+  Future<Map<String, Object?>> beginDiagnosticCapture() async => {};
+  Future<Map<String, Object?>> endDiagnosticCapture() async => {};
+
   Duration get readingTimeout => const Duration(seconds: 2);
   bool get fresh =>
       connected &&
