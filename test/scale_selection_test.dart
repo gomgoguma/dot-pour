@@ -18,7 +18,7 @@ void main() {
       SharedPreferences.setMockInitialValues({'dose': 18.0, 'ratio': 16.7});
       final prefs = await SharedPreferences.getInstance();
       await tester.pumpWidget(DotPourApp(preferences: prefs));
-      expect(find.text('어떤 저울을 쓰시나요?'), findsOneWidget);
+      expect(find.text('저울 모델 선택'), findsOneWidget);
       expect(find.text('Black Mirror Dot'), findsOneWidget);
       expect(ScaleRegistry.standard().models.length, 1);
       expect(prefs.getString(BrewController.selectedScaleKey), isNull);
@@ -34,7 +34,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(DotPourApp(preferences: prefs));
-      expect(find.text('어떤 저울을 쓰시나요?'), findsNothing);
+      expect(find.text('저울 모델 선택'), findsNothing);
       expect(find.byKey(const Key('change-scale')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

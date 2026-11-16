@@ -55,14 +55,14 @@ class _ScaleSelectionScreenState extends State<ScaleSelectionScreen> {
             const Center(child: BrandMark(size: 72)),
             const SizedBox(height: 24),
             Text(
-              widget.firstRun ? '어떤 저울을 쓰시나요?' : '함께할 저울을 선택하세요.',
+              '저울 모델 선택',
               style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
             Text(
               widget.firstRun
-                  ? '사용할 모델을 선택해 주세요.\n나중에도 추출 화면에서 바꿀 수 있어요.'
-                  : '다른 모델로 변경하면 기존 연결을 해제합니다.\n원두량과 저장한 레시피는 그대로 유지돼요.',
+                  ? '사용할 모델을 선택하세요.\n추출 화면에서 변경할 수 있습니다.'
+                  : '모델 변경 시 기존 연결이 해제됩니다.\n원두량과 저장된 레시피는 유지됩니다.',
               style: const TextStyle(color: muted, height: 1.7),
             ),
             const SizedBox(height: 32),
@@ -129,7 +129,7 @@ class _ScaleSelectionScreenState extends State<ScaleSelectionScreen> {
               ),
             const SizedBox(height: 8),
             const Text(
-              '저울 선택 후 블루투스로 연결할 수 있어요.',
+              '저울 선택 후 블루투스로 연결합니다.',
               style: TextStyle(fontSize: 12, color: muted, height: 1.6),
             ),
             if (error != null)

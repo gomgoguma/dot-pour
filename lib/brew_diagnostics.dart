@@ -95,4 +95,56 @@ class BrewDiagnostics {
     'timing': 'App receipt and Flutter frame completion; not sensor timestamps',
     'events': _events.toList(),
   });
+
+  /// A small clipboard report; the complete event trace stays in [export].
+  String summary({
+    required String version,
+    required String platform,
+    Map<String, Object?> connection = const {},
+  }) {
+    final intervals = <double>[];
+    final frameDelays = <double>[];
+    final received = <Object?, double>{};
+    double? previous;
+    var inputs = 0, held = 0;
+    for (final event in _events) {
+      final at = (event['ms'] as num).toDouble();
+      if (event['kind'] == 'input') {
+        inputs++;
+        if (event['holding'] == true) held++;
+        if (previous != null) intervals.add(at - previous);
+        previous = at;
+        received[event['seq']] = at;
+      } else if (event['kind'] == 'frame') {
+        final inputAt = received[event['seq']];
+        if (inputAt != null) frameDelays.add(at - inputAt);
+      }
+    }
+    return const JsonEncoder.withIndent('  ').convert({
+      'app': 'Dot Pour',
+      'version': version,
+      'platform': platform,
+      'report': 'summary_only; full trace is in the diagnostic JSON file',
+      'window_event_count': count,
+      'input_count': inputs,
+      'held_input_count': held,
+      'app_receipt_interval_ms': _statistics(intervals),
+      'receipt_to_flutter_frame_ms': _statistics(frameDelays),
+      if (connection.isNotEmpty) 'connection_snapshot_at_export': connection,
+      'timing':
+          'App receipt and Flutter frame completion; not sensor timestamps',
+    });
+  }
+
+  static Map<String, Object?> _statistics(List<double> values) {
+    if (values.isEmpty) return {'count': 0};
+    values.sort();
+    double rounded(double value) => double.parse(value.toStringAsFixed(2));
+    return {
+      'count': values.length,
+      'mean': rounded(values.reduce((a, b) => a + b) / values.length),
+      'p95': rounded(values[(values.length * .95).ceil() - 1]),
+      'max': rounded(values.last),
+    };
+  }
 }

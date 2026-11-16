@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +24,7 @@ class BrewController extends ChangeNotifier {
   bool get canChangeScale =>
       !brew.active && !starting && !changingScale && !(_scale?.busy ?? false);
   final BrewSession brew;
+  final bool demoAvailable;
   final diagnostics = BrewDiagnostics();
   bool _notifiedSinceTick = false;
   late final RecipeStore store;
@@ -41,7 +43,9 @@ class BrewController extends ChangeNotifier {
     this.preferences, {
     BrewSession? session,
     ScaleRegistry? scaleRegistry,
-  }) : brew = session ?? BrewSession(),
+    bool? allowDemo,
+  }) : demoAvailable = allowDemo ?? !Platform.isAndroid,
+       brew = session ?? BrewSession(),
        scaleRegistry = scaleRegistry ?? ScaleRegistry.standard() {
     store = RecipeStore(preferences);
     final dose = preferences.getDouble('dose') ?? 20;
@@ -312,7 +316,7 @@ class BrewController extends ChangeNotifier {
   }
 
   Future<void> toggleDemo() async {
-    if (!canChangeScale || _scale == null) return;
+    if (!demoAvailable || !canChangeScale || _scale == null) return;
     await _scale!.disconnect();
     if (_disposed) return;
     demo = !demo;

@@ -184,7 +184,7 @@ class BrewRecipe {
           step.start < previousEnd - 0.001 ||
           step.duration <= 0 ||
           step.amount <= 0) {
-        return '차수의 시작 시간·붓는 시간·물량을 확인해 주세요. 시간은 겹칠 수 없습니다.';
+        return '차수의 시작 시간·붓는 시간·물의 무게를 확인해 주세요. 시간은 겹칠 수 없습니다.';
       }
       previousEnd = step.end;
     }
@@ -193,7 +193,7 @@ class BrewRecipe {
         (plannedGrams - target).abs() > math.max(0.2, target * 0.001)) {
       return unit == PourUnit.percent
           ? '차수별 비율의 합계를 100%로 맞춰 주세요.'
-          : '차수별 물량의 합계를 목표 물량과 맞춰 주세요.';
+          : '차수별 물의 무게 합계를 목표와 맞춰 주세요.';
     }
     double previousTime = -1;
     for (final point in trace) {

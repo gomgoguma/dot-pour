@@ -57,6 +57,12 @@ void main() {
       expect(events.length, 3);
       expect(events[2]['ms'] - events[1]['ms'], 16);
       expect(events[2]['seq'], events[1]['seq']);
+      final summary = jsonDecode(
+        capture.summary(version: 'test', platform: 'test'),
+      );
+      expect(summary['receipt_to_flutter_frame_ms']['mean'], 16);
+      expect(summary['app_receipt_interval_ms']['count'], 0);
+      expect(summary.containsKey('events'), false);
     },
   );
 }

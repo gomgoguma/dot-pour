@@ -39,7 +39,10 @@ void main() {
       if (g > 1) {
         expect(c.brew.water, g - 1);
         expect(
-          find.text('${(g - 1).toStringAsFixed(1)} g', findRichText: true),
+          find.text(
+            '${(g - 1).toStringAsFixed(1)} / 320 g',
+            findRichText: true,
+          ),
           findsOneWidget,
         );
       }

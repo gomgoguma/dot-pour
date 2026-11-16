@@ -51,7 +51,7 @@ class BrewSession {
       return '비율은 1:1~1:30으로 입력해 주세요.';
     }
     if (maxWater != null && dose * ratio > maxWater) {
-      return '목표 물량이 선택한 저울의 최대 용량 ${maxWater.toStringAsFixed(0)}g을 넘습니다.';
+      return '목표 물의 무게가 선택한 저울의 최대 용량 ${maxWater.toStringAsFixed(0)}g을 넘습니다.';
     }
     return null;
   }

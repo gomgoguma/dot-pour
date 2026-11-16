@@ -21,7 +21,7 @@ class WeighingPanel extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            c.starting ? '영점을 맞추고 있어요' : '현재 무게',
+            c.starting ? '영점 설정 중' : '현재 무게',
             style: const TextStyle(color: muted, fontSize: 14),
           ),
           const SizedBox(height: 18),
@@ -43,7 +43,7 @@ class WeighingPanel extends StatelessWidget {
                 ? '이 무게로 시작하면 목표 ${number(grams! * c.brew.ratio)} g'
                 : c.demo || c.scale?.connected == true
                 ? '서버·드리퍼는 TARE, 원두는 그대로 올려주세요.'
-                : '저울을 연결하면 무게가 표시돼요.',
+                : '저울을 연결하면 무게가 표시됩니다.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: muted, fontSize: 12, height: 1.6),
           ),

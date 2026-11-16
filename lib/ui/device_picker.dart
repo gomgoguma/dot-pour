@@ -65,7 +65,7 @@ Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
                                       ? Center(
                                         child: Text(
                                           scale.scanning
-                                              ? '근처 저울을 찾고 있어요…'
+                                              ? '주변 저울 검색 중…'
                                               : scale.devices.isNotEmpty &&
                                                   !showAll
                                               ? '도트로 식별되는 기기가 없습니다.\n모든 BLE 기기 보기를 켜보세요.'

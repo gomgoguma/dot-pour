@@ -40,7 +40,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('추출 마치기'));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('이 한 잔을 기억할까요?'), findsOneWidget);
+    expect(find.text('레시피 저장'), findsOneWidget);
     await tester.enterText(
       find.byKey(const Key('save-recipe-name')),
       '테스트 한 잔',
@@ -111,7 +111,7 @@ void main() {
       await tester.tap(find.text('레시피 저장'));
       await tester.pump();
       expect(saved, isNull);
-      expect(find.text('차수별 물량의 합계를 목표 물량과 맞춰 주세요.'), findsOneWidget);
+      expect(find.text('차수별 물의 무게 합계를 목표와 맞춰 주세요.'), findsOneWidget);
       await tester.enterText(amounts.at(0), '60');
       await tester.tap(find.text('레시피 저장'));
       await tester.pump();

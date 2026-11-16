@@ -54,7 +54,7 @@ class RecipeLibrary extends StatelessWidget {
                               ),
                               const SizedBox(height: 20),
                               const Text(
-                                '좋았던 한 잔을 다시',
+                                '저장된 레시피 없음',
                                 style: TextStyle(
                                   fontSize: 23,
                                   fontWeight: FontWeight.w600,
@@ -62,7 +62,7 @@ class RecipeLibrary extends StatelessWidget {
                               ),
                               const SizedBox(height: 10),
                               const Text(
-                                '붓기 계획을 미리 만들거나\n추출을 마친 뒤 그래프를 저장해 보세요.',
+                                '수동 레시피를 만들거나\n추출 완료 후 기록을 저장하세요.',
                                 style: TextStyle(color: muted, height: 1.7),
                                 textAlign: TextAlign.center,
                               ),
@@ -70,7 +70,7 @@ class RecipeLibrary extends StatelessWidget {
                               FilledButton.icon(
                                 onPressed: () => _edit(context),
                                 icon: const Icon(Icons.add),
-                                label: const Text('첫 레시피 만들기'),
+                                label: const Text('레시피 만들기'),
                               ),
                             ],
                           ),

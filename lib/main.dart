@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'brew_controller.dart';
-import 'brew_session.dart';
 import 'ui/brew_chart.dart';
 import 'ui/brew_timer.dart';
+import 'ui/brew_metrics.dart';
 import 'ui/brand_mark.dart';
 import 'ui/brew_settings.dart';
 import 'ui/device_picker.dart';
@@ -66,7 +66,7 @@ class _BrewScreenState extends State<BrewScreen> {
   Future<void> _save() async {
     if (!c.canSave) return;
     final now = DateTime.now();
-    final name = TextEditingController(text: '${now.month}월 ${now.day}일의 한 잔');
+    final name = TextEditingController(text: '${now.month}월 ${now.day}일 추출');
     String? error;
     bool busy = false;
     await showDialog<void>(
@@ -76,7 +76,7 @@ class _BrewScreenState extends State<BrewScreen> {
           (context) => StatefulBuilder(
             builder:
                 (context, setDialogState) => AlertDialog(
-                  title: const Text('이 한 잔을 기억할까요?'),
+                  title: const Text('레시피 저장'),
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,7 +87,7 @@ class _BrewScreenState extends State<BrewScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        '실제 그래프와 붓기 단계를 저장해 다음 추출에서 따라갈 수 있어요.',
+                        '추출 그래프와 붓기 단계를 저장합니다.',
                         style: TextStyle(
                           color: muted,
                           fontSize: 12,
@@ -167,16 +167,79 @@ class _BrewScreenState extends State<BrewScreen> {
           c.diagnostics.frame(sequence, raw: raw, water: water);
         });
       }
-      final status = switch (brew.phase) {
-        BrewPhase.setup =>
-          c.reference == null ? '오늘도, 나다운 한 잔.' : '좋았던 한 잔을 다시.',
-        BrewPhase.ready => '첫 물줄기를 기다려요.',
-        BrewPhase.pouring => brew.reached ? '목표 물량에 도달했어요.' : '지금의 한 잔에 집중해요.',
-        BrewPhase.finished =>
-          c.savedId != null ? '다음에도 기억할게요.' : '한 잔이 완성되었어요.',
-        BrewPhase.interrupted => '추출이 중단되었어요.',
-      };
       return Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          toolbarHeight: 64,
+          titleSpacing: 20,
+          scrolledUnderElevation: 0,
+          backgroundColor: paper,
+          title: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Row(
+                key: const Key('brew-header'),
+                children: [
+                  const BrandMark(),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'dot pour',
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.7,
+                      ),
+                    ),
+                  ),
+                  if (c.demo)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        'DEMO',
+                        style: TextStyle(
+                          fontSize: 10,
+                          letterSpacing: 1.5,
+                          color: copper,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
+                  else
+                    TextButton.icon(
+                      onPressed:
+                          scale.busy ||
+                                  c.starting ||
+                                  (brew.active && !scale.connected)
+                              ? null
+                              : () async {
+                                if (scale.connected) {
+                                  await showScaleStatus(context, c);
+                                } else {
+                                  await showDevicePicker(context, scale);
+                                }
+                              },
+                      icon: Icon(
+                        scale.connected
+                            ? Icons.bluetooth_connected
+                            : Icons.bluetooth,
+                        size: 17,
+                      ),
+                      label: Text(
+                        scale.connected ? '연결됨' : '연결',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  IconButton(
+                    tooltip: '내 레시피',
+                    onPressed: c.starting ? null : _library,
+                    icon: const Icon(Icons.menu_book_outlined, size: 23),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         bottomNavigationBar: SafeArea(
           top: false,
           child: Center(
@@ -237,20 +300,21 @@ class _BrewScreenState extends State<BrewScreen> {
                         height: 34,
                         child: Row(
                           children: [
-                            Expanded(
-                              flex: 3,
-                              child: TextButton(
-                                onPressed:
-                                    c.canChangeScale ? c.toggleDemo : null,
-                                child: Text(
-                                  c.demo ? '실제 저울로 전환' : '저울 없이 데모로 체험',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: muted,
+                            if (c.demoAvailable)
+                              Expanded(
+                                flex: 3,
+                                child: TextButton(
+                                  onPressed:
+                                      c.canChangeScale ? c.toggleDemo : null,
+                                  child: Text(
+                                    c.demo ? '실제 저울로 전환' : '저울 없이 데모로 체험',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: muted,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
                             Expanded(
                               flex: 2,
                               child: TextButton.icon(
@@ -293,76 +357,6 @@ class _BrewScreenState extends State<BrewScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        const BrandMark(),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'dot pour',
-                            style: TextStyle(
-                              fontSize: 23,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.7,
-                            ),
-                          ),
-                        ),
-                        if (c.demo)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              'DEMO',
-                              style: TextStyle(
-                                fontSize: 10,
-                                letterSpacing: 1.5,
-                                color: copper,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          )
-                        else
-                          TextButton.icon(
-                            onPressed:
-                                scale.busy ||
-                                        c.starting ||
-                                        (brew.active && !scale.connected)
-                                    ? null
-                                    : () async {
-                                      if (scale.connected) {
-                                        await showScaleStatus(context, c);
-                                      } else {
-                                        await showDevicePicker(context, scale);
-                                      }
-                                    },
-                            icon: Icon(
-                              scale.connected
-                                  ? Icons.bluetooth_connected
-                                  : Icons.bluetooth,
-                              size: 17,
-                            ),
-                            label: Text(
-                              scale.connected ? '연결됨' : '연결',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        IconButton(
-                          tooltip: '내 레시피',
-                          onPressed: c.starting ? null : _library,
-                          icon: const Icon(Icons.menu_book_outlined, size: 23),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (!brew.active) ...[
-                      Text(
-                        status,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
                     InkWell(
                       onTap: c.setup && !c.starting ? _settings : null,
                       borderRadius: BorderRadius.circular(14),
@@ -444,73 +438,11 @@ class _BrewScreenState extends State<BrewScreen> {
                     if (c.setup)
                       WeighingPanel(controller: c)
                     else ...[
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Column(
-                          children: [
-                            SizedBox(
-                              height:
-                                  84 +
-                                  MediaQuery.textScalerOf(context).scale(16),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: _MetricCell(
-                                      '현재 물량',
-                                      brew.water.toStringAsFixed(1),
-                                      'g',
-                                    ),
-                                  ),
-                                  const VerticalDivider(
-                                    width: 1,
-                                    indent: 18,
-                                    endIndent: 18,
-                                  ),
-                                  Expanded(
-                                    child: _MetricCell(
-                                      '목표 물량',
-                                      number(brew.target),
-                                      'g',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Divider(height: 1, indent: 20, endIndent: 20),
-                            SizedBox(
-                              height:
-                                  84 +
-                                  MediaQuery.textScalerOf(context).scale(16),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: _MetricCell(
-                                      '물량 대비',
-                                      brew.percent.toStringAsFixed(1),
-                                      '%',
-                                      highlight: true,
-                                    ),
-                                  ),
-                                  const VerticalDivider(
-                                    width: 1,
-                                    indent: 18,
-                                    endIndent: 18,
-                                  ),
-                                  Expanded(
-                                    child: _MetricCell(
-                                      '유량',
-                                      brew.flow.toStringAsFixed(1),
-                                      'g/s',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                      BrewMetrics(
+                        water: brew.water,
+                        target: brew.target,
+                        percent: brew.percent,
+                        flow: brew.flow,
                       ),
                       const SizedBox(height: 12),
                       BrewTimer(
@@ -545,7 +477,7 @@ class _BrewScreenState extends State<BrewScreen> {
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
-                              '데모 물량',
+                              '데모: 부은 물',
                               style: TextStyle(fontSize: 12, color: muted),
                             ),
                           ),
@@ -607,7 +539,7 @@ class _BrewScreenState extends State<BrewScreen> {
                       const Padding(
                         padding: EdgeInsets.only(top: 18),
                         child: Text(
-                          '서버·드리퍼를 올리고 TARE → 원두 계량 → 스타트\n원두량을 기억하고 0g부터 물량을 기록해요.',
+                          '서버·드리퍼 TARE → 원두 계량 → 추출 시작\n원두량으로 목표 물의 무게를 계산하고 0g부터 기록합니다.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: muted,
@@ -632,7 +564,7 @@ class _BrewScreenState extends State<BrewScreen> {
         guide.recipe.steps.isEmpty
             ? '기록된 곡선을 따라 부어 주세요'
             : guide.step == null
-            ? '물 붓기 완료 · 추출을 기다려요'
+            ? '물 붓기 완료 · 추출 대기'
             : guide.waiting
             ? '${guide.stepIndex + 1}차까지 ${number(guide.step!.start - guide.seconds, 0)}초'
             : '${guide.stepIndex + 1}차 붓기';
@@ -717,54 +649,4 @@ class _BrewScreenState extends State<BrewScreen> {
     c.dispose();
     super.dispose();
   }
-}
-
-class _MetricCell extends StatelessWidget {
-  final String label, value, unit;
-  final bool highlight;
-  const _MetricCell(
-    this.label,
-    this.value,
-    this.unit, {
-    this.highlight = false,
-  });
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: muted)),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 45,
-          width: double.infinity,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: value,
-                    style: TextStyle(
-                      fontSize: 38,
-                      letterSpacing: -1.5,
-                      fontWeight: FontWeight.w500,
-                      color: highlight ? copper : ink,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  TextSpan(
-                    text: ' $unit',
-                    style: const TextStyle(fontSize: 14, color: muted),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
 }

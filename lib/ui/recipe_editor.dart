@@ -252,7 +252,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
                 Text(
                   _unit == PourUnit.percent
                       ? '각 차수에 추가로 부을 비율입니다. 전체 합계는 100%예요.'
-                      : '각 차수에 추가로 부을 물량입니다. 누적 무게가 아니에요.',
+                      : '각 차수에 추가로 부을 물의 무게입니다.',
                   style: const TextStyle(color: muted, fontSize: 12),
                 ),
                 const SizedBox(height: 16),
@@ -377,7 +377,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
                   decoration: const InputDecoration(
                     labelText: '총 추출시간',
                     suffixText: '초',
-                    helperText: '마지막 붓기 이후 기다리는 시간까지 포함해요.',
+                    helperText: '마지막 붓기 이후 대기 시간까지 포함합니다.',
                   ),
                   onChanged: (_) => _refresh(),
                 ),

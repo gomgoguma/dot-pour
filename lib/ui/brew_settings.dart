@@ -27,7 +27,7 @@ class DoseRatioFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionLabel('한 잔의 기준'),
+        const SectionLabel('추출 기준'),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -135,87 +135,93 @@ class _BrewSettingsSheetState extends State<BrewSettingsSheet> {
   String? error;
   bool busy = false;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      24,
-      8,
-      24,
-      24 + MediaQuery.viewInsetsOf(context).bottom,
-    ),
-    child: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionLabel('한 잔의 비율'),
-          TextField(
-            key: const Key('ratio-input'),
-            controller: _ratio,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600),
-            decoration: const InputDecoration(
-              labelText: '원두 : 물',
-              prefixText: '1 : ',
+  Widget build(BuildContext context) => SafeArea(
+    top: false,
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        8,
+        24,
+        24 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SectionLabel('추출 비율'),
+            TextField(
+              key: const Key('ratio-input'),
+              controller: _ratio,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600),
+              decoration: const InputDecoration(
+                labelText: '원두 : 물',
+                prefixText: '1 : ',
+              ),
+              onChanged: (_) => setState(() => error = null),
             ),
-            onChanged: (_) => setState(() => error = null),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              for (final value in ratioPresets)
-                ChoiceChip(
-                  label: Text('1:${number(value)}'),
-                  selected: parseNumber(_ratio.text) == value,
-                  onSelected:
-                      (_) => setState(() {
-                        _ratio.text = number(value);
-                        error = null;
-                      }),
-                ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Text(
-            widget.scaling
-                ? '스타트를 누를 때 계량한 원두량과 이 비율에 맞춰 레시피의 붓기량을 조정해요.'
-                : '원두량은 저울로 계량해요. 스타트를 누르면 목표 물량을 자동 계산해요.',
-            style: const TextStyle(color: muted, fontSize: 12),
-          ),
-          if (error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(error!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final value in ratioPresets)
+                  ChoiceChip(
+                    label: Text('1:${number(value)}'),
+                    selected: parseNumber(_ratio.text) == value,
+                    onSelected:
+                        (_) => setState(() {
+                          _ratio.text = number(value);
+                          error = null;
+                        }),
+                  ),
+              ],
             ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed:
-                busy
-                    ? null
-                    : () async {
-                      final ratio = parseNumber(_ratio.text);
-                      final validation = BrewSession.validate(1, ratio);
-                      if (validation != null) {
-                        setState(() => error = validation);
-                        return;
-                      }
-                      setState(() => busy = true);
-                      try {
-                        await widget.onSave(ratio);
-                        if (context.mounted) Navigator.pop(context);
-                      } catch (e) {
-                        if (mounted) {
-                          setState(() {
-                            error = '$e';
-                            busy = false;
-                          });
+            const SizedBox(height: 22),
+            Text(
+              widget.scaling
+                  ? '추출 시작 시 계량한 원두량과 비율에 맞춰 붓기 계획을 조정합니다.'
+                  : '원두량은 저울로 계량합니다. 추출 시작 시 목표 물의 무게를 계산합니다.',
+              style: const TextStyle(color: muted, fontSize: 12),
+            ),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(error!, style: const TextStyle(color: Colors.red)),
+              ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed:
+                  busy
+                      ? null
+                      : () async {
+                        final ratio = parseNumber(_ratio.text);
+                        final validation = BrewSession.validate(1, ratio);
+                        if (validation != null) {
+                          setState(() => error = validation);
+                          return;
                         }
-                      }
-                    },
-            child: const Text('설정 완료'),
-          ),
-        ],
+                        setState(() => busy = true);
+                        try {
+                          await widget.onSave(ratio);
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() {
+                              error = '$e';
+                              busy = false;
+                            });
+                          }
+                        }
+                      },
+              key: const Key('confirm-ratio'),
+              child: const Text('설정 완료'),
+            ),
+          ],
+        ),
       ),
     ),
   );
