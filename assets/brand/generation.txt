@@ -1,0 +1,12 @@
+Generated with the built-in image_gen tool; no API/CLI fallback.
+Original transparent PNG: dot-pour-drop.png
+Platform files are size/format exports of this original, with a cream launcher background where required.
+
+Use case: logo-brand
+Asset type: production logo symbol for Dot Pour, a calm native pour-over coffee companion app.
+Primary request: a distinctive water droplet logo that fits the name Dot Pour: a near-circular, full rounded drop gently drawn upward into a short elegant tapered tip. One compact solid silhouette, graceful but geometrically simple, immediately recognizable as water at 24 px.
+Style/medium: crisp flat vector-like brand mark rendered as a high-resolution PNG; smooth precise edges, understated and warm, no texture.
+Composition/framing: square canvas, single upright symbol centered; symbol occupies approximately 75% of the canvas height with generous even transparent margin. Broad round base, softly curved shoulders, a subtly softened apex. No separate extra droplets.
+Color palette: single flat deep forest green #233E36, matching a warm cream and green coffee app.
+Scene/backdrop: genuinely transparent background with alpha.
+Constraints: only the logo symbol. No words, letters, numbers, border, container, shadow, gradient, glow, 3D, water splashes, mockup, photography, coffee beans, cup, or watermark. It should feel like a round dot becoming a pouring drop.

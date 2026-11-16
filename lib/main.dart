@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'brew_controller.dart';
 import 'brew_session.dart';
 import 'ui/brew_chart.dart';
+import 'ui/brand_mark.dart';
 import 'ui/brew_settings.dart';
 import 'ui/device_picker.dart';
 import 'ui/recipe_library.dart';
@@ -284,11 +285,7 @@ class _BrewScreenState extends State<BrewScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(
-                          Icons.blur_circular_rounded,
-                          size: 25,
-                          color: ink,
-                        ),
+                        const BrandMark(),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(

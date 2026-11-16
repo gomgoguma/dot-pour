@@ -1,5 +1,7 @@
 # Dot Pour
 
+<img src="assets/brand/dot-pour-drop.png" alt="Dot Pour 물방울 로고" width="80" />
+
 BLE 커피 저울과 연결해 목표 물량 대비 진행률·유량·추출 그래프를 보여주는 Flutter 앱입니다. 현재 지원하는 저울은 **TIMEMORE Black Mirror Dot(TES017)**입니다.
 
 **개발 중인 프로토타입입니다. 실제 도트 연결 및 Android/iOS 기기 검증은 아직 완료하지 않았습니다.**
@@ -87,6 +89,8 @@ Windows 빌드에는 Visual Studio C++ 빌드 도구가 필요합니다. Flutter
 - `lib/recipe.dart`, `lib/recipe_store.dart`: 붓기 계획, 기준 곡선, 재현 안내와 로컬 저장
 - `lib/main.dart`, `lib/ui/`: 최초 저울 선택, 추출 화면, 그래프, 설정, 레시피 편집과 보관함
 - `test/`: 프로토콜, 계산, 화면 흐름 검증
+
+물방울 로고 원본은 `assets/brand/dot-pour-drop.png`입니다. 생성 도구와 프롬프트는 같은 폴더의 `generation.txt`에 기록했습니다. Windows에서 `powershell -File tool/export-app-icons.ps1`을 실행하면 원본을 보존한 채 Android·iOS·Windows 아이콘 크기로 내보냅니다.
 
 Windows 실행 파일을 전달할 때는 `Release` 폴더 전체가 필요합니다. Android debug APK는 개발 테스트용이며 스토어 배포용 서명이 아닙니다.
 

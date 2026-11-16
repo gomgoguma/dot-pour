@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../brew_controller.dart';
+import 'brand_mark.dart';
 import 'style.dart';
 
 class ScaleSelectionScreen extends StatefulWidget {
@@ -51,7 +52,7 @@ class _ScaleSelectionScreenState extends State<ScaleSelectionScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
           children: [
-            const Icon(Icons.scale_outlined, size: 42, color: copper),
+            const Center(child: BrandMark(size: 72)),
             const SizedBox(height: 24),
             Text(
               widget.firstRun ? '어떤 저울을 쓰시나요?' : '함께할 저울을 선택하세요.',
