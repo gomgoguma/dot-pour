@@ -17,7 +17,8 @@ abstract class MyBluetoothLowEnergyManager(val context: Context) {
     private val mBroadcastReceiver: BroadcastReceiver by lazy { MyBroadcastReceiver(this) }
     private val mRequestPermissionsResultListener: PluginRegistry.RequestPermissionsResultListener by lazy { MyRequestPermissionResultListener(this) }
 
-    private lateinit var mBinding: ActivityPluginBinding
+    private var mBinding: ActivityPluginBinding? = null
+    private var disposed = false
 
     init {
         val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
@@ -25,15 +26,24 @@ abstract class MyBluetoothLowEnergyManager(val context: Context) {
         context.registerReceiver(mBroadcastReceiver, filter)
     }
 
-    val activity: Activity get() = mBinding.activity
+    val activity: Activity get() = checkNotNull(mBinding).activity
 
     fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        mBinding?.removeRequestPermissionsResultListener(mRequestPermissionsResultListener)
         binding.addRequestPermissionsResultListener(mRequestPermissionsResultListener)
         mBinding = binding
     }
 
     fun onDetachedFromActivity() {
-        mBinding.removeRequestPermissionsResultListener(mRequestPermissionsResultListener)
+        mBinding?.removeRequestPermissionsResultListener(mRequestPermissionsResultListener)
+        mBinding = null
+    }
+
+    open fun dispose() {
+        if (disposed) return
+        disposed = true
+        onDetachedFromActivity()
+        context.unregisterReceiver(mBroadcastReceiver)
     }
 
     abstract fun onReceive(context: Context, intent: Intent)

@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'brew_session.dart';
@@ -13,7 +13,7 @@ import 'scales/scale_registry.dart';
 import 'recipe.dart';
 import 'recipe_store.dart';
 
-class BrewController extends ChangeNotifier {
+class BrewController extends ChangeNotifier with WidgetsBindingObserver {
   final SharedPreferences preferences;
   static const selectedScaleKey = 'scale.model';
   final ScaleRegistry scaleRegistry;
@@ -51,6 +51,7 @@ class BrewController extends ChangeNotifier {
   }) : demoAvailable = allowDemo ?? !Platform.isAndroid,
        brew = session ?? BrewSession(),
        scaleRegistry = scaleRegistry ?? ScaleRegistry.standard() {
+    WidgetsBinding.instance.addObserver(this);
     store = RecipeStore(preferences);
     final dose = preferences.getDouble('dose') ?? 20;
     final ratio = preferences.getDouble('ratio') ?? 16;
@@ -138,13 +139,22 @@ class BrewController extends ChangeNotifier {
           null;
   Future<void> tare() async {
     if (!canTare) return;
+    diagnostics.mark('tare_requested');
     notice = null;
     if (demo) {
       demoWeight = 0;
     } else {
       await _scale!.tare();
     }
+    diagnostics.mark(
+      _scale?.error == null ? 'tare_command_completed' : 'tare_failed',
+    );
     _changed();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    diagnostics.mark('lifecycle_${state.name}');
   }
 
   PourGuide? get guide =>
@@ -303,6 +313,7 @@ class BrewController extends ChangeNotifier {
       return;
     }
     starting = true;
+    diagnostics.mark('brew_start_requested');
     notice = null;
     _changed();
     try {
@@ -311,7 +322,9 @@ class BrewController extends ChangeNotifier {
         demoWeight = 0;
         baseline = 0;
       } else if (scale.info.capabilities.tare) {
+        diagnostics.mark('brew_tare_requested');
         await scale.tare();
+        diagnostics.mark('brew_tare_command_completed');
         if (scale.error != null) throw StateError(scale.error!);
         // The command ACK alone is not proof that the live weight has zeroed.
         final zeroed = Completer<void>();
@@ -339,6 +352,7 @@ class BrewController extends ChangeNotifier {
       if (_disposed) return;
       reference = reference?.scaled(measuredDose, brew.ratio);
       brew.start(rawGrams: baseline, dose: measuredDose, ratio: brew.ratio);
+      diagnostics.mark('brew_ready');
       _lastSample = scale.lastReading;
       _lastTick = DateTime.now();
       savedId = null;
@@ -346,6 +360,7 @@ class BrewController extends ChangeNotifier {
       _alerted = false;
       _keepAwake(true);
     } catch (e) {
+      diagnostics.mark('brew_start_failed');
       notice = '영점을 확인하지 못해 시작하지 않았습니다. 원두 무게를 다시 계량해 주세요. ($e)';
     } finally {
       starting = false;
@@ -355,6 +370,7 @@ class BrewController extends ChangeNotifier {
 
   void finish() {
     if (!brew.active) return;
+    diagnostics.mark('brew_finish');
     brew.finish();
     demoAuto = false;
     _keepAwake(false);
@@ -370,6 +386,7 @@ class BrewController extends ChangeNotifier {
   }
 
   void reset() {
+    diagnostics.mark('brew_reset');
     brew.reset();
     demoWeight = 20;
     demoAuto = false;
@@ -489,6 +506,7 @@ class BrewController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
     _stopRenderTimings();
     diagnostics.stop();
     if (_diagnosticScale != null && !diagnosticBusy) {

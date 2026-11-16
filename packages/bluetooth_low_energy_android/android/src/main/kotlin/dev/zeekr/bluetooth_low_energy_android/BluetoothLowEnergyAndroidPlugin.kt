@@ -24,6 +24,7 @@ class BluetoothLowEnergyAndroidPlugin : FlutterPlugin, ActivityAware {
                     "snapshot" -> result.success(mCentralManager.measurementLinkSnapshot())
                     "capture_start" -> result.success(mCentralManager.beginMeasurementCapture())
                     "capture_stop" -> result.success(mCentralManager.endMeasurementCapture())
+                    "resume" -> { mCentralManager.resumeMeasurementLinks(); result.success(null) }
                     else -> result.notImplemented()
                 }
             }
@@ -31,6 +32,8 @@ class BluetoothLowEnergyAndroidPlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        mCentralManager.dispose()
+        mPeripheralManager.dispose()
         val binaryMessenger = binding.binaryMessenger
         MyCentralManagerHostAPI.setUp(binaryMessenger, null)
         MyPeripheralManagerHostAPI.setUp(binaryMessenger, null)

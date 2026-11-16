@@ -17,6 +17,13 @@ internal class MeasurementLink(
     private var streaming = false
     private var requestAccepted: Boolean? = null
     private var capture: DeliveryWindow? = null
+    private var resumeRequests = 0
+
+    fun onResume() {
+        if (!streaming) return
+        resumeRequests++
+        setStreaming(true)
+    }
 
     fun beginCapture() { capture?.stop(); capture = DeliveryWindow(nowNs) }
 
@@ -27,6 +34,7 @@ internal class MeasurementLink(
         return window.snapshot() + mapOf(
             "requested_priority" to if (streaming) "high" else "balanced",
             "priority_request_accepted" to requestAccepted,
+            "resume_priority_requests" to resumeRequests,
         )
     }
 
@@ -60,6 +68,7 @@ internal class MeasurementLink(
     fun snapshot(): Map<String, Any?> = mapOf(
         "requested_priority" to if (streaming) "high" else "balanced",
         "priority_request_accepted" to requestAccepted,
+        "resume_priority_requests" to resumeRequests,
         "weight_notification_count" to count,
         "window_size" to dispatchDelays.size,
         "native_interval_mean_ms" to mean(intervals),

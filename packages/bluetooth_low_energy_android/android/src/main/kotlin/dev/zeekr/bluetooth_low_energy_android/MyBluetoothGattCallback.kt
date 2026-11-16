@@ -6,10 +6,58 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.os.Build
 import java.util.concurrent.Executor
+import java.util.concurrent.ConcurrentHashMap
 
 class MyBluetoothGattCallback(manager: MyCentralManager, executor: Executor) : BluetoothGattCallback() {
     private val mManager: MyCentralManager
     private val mExecutor: Executor
+    private data class Notification(val characteristic: BluetoothGattCharacteristic, val value: ByteArray, val receivedAtNs: Long)
+    private val pumps = ConcurrentHashMap<BluetoothGatt, NotificationPump<Notification>>()
+    private val closedGatts = java.util.Collections.newSetFromMap(java.util.WeakHashMap<BluetoothGatt, Boolean>())
+    private var shutDown = false
+    private var capturePumps = emptyList<NotificationPump<Notification>>()
+    private var captureStart = emptyList<Map<String, Any>>()
+    private val measurementUUID = java.util.UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
+
+    fun beginDeliveryCapture() {
+        capturePumps = pumps.values.toList()
+        captureStart = capturePumps.map { it.snapshot() }
+    }
+    fun endDeliveryCapture(): Map<String, Any> {
+        val result = mapOf("at_start" to captureStart, "at_stop" to capturePumps.map { it.snapshot() })
+        capturePumps = emptyList()
+        captureStart = emptyList()
+        return result
+    }
+    fun deliverySnapshot() = pumps.values.map { it.snapshot() }
+
+    @Synchronized
+    fun closeNotifications(gatt: BluetoothGatt) {
+        closedGatts.add(gatt)
+        pumps.remove(gatt)?.close()
+    }
+    @Synchronized
+    fun closeAllNotifications() {
+        closedGatts.addAll(pumps.keys)
+        pumps.values.forEach { it.close() }
+        pumps.clear()
+    }
+    @Synchronized
+    fun shutdown() { shutDown = true; closeAllNotifications() }
+
+    @Synchronized
+    private fun notification(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
+        if (shutDown || closedGatts.contains(gatt)) return
+        val receivedAtNs = System.nanoTime()
+        val snapshot = value.copyOf()
+        val pump = pumps.getOrPut(gatt) {
+            NotificationPump(mExecutor) { item: Notification, done ->
+                mManager.onCharacteristicChanged(gatt, item.characteristic, item.value, item.receivedAtNs, done)
+            }
+        }
+        pump.offer(Notification(characteristic, snapshot, receivedAtNs),
+            characteristic.uuid == measurementUUID && DotWeightFrame.replaceable(snapshot))
+    }
 
     init {
         mManager = manager
@@ -17,6 +65,7 @@ class MyBluetoothGattCallback(manager: MyCentralManager, executor: Executor) : B
     }
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+        if (newState == android.bluetooth.BluetoothProfile.STATE_DISCONNECTED) closeNotifications(gatt)
         super.onConnectionStateChange(gatt, status, newState)
         mExecutor.execute {
             mManager.onConnectionStateChange(gatt, status, newState)
@@ -71,25 +120,17 @@ class MyBluetoothGattCallback(manager: MyCentralManager, executor: Executor) : B
     }
 
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
-        val receivedAtNs = System.nanoTime()
-        val snapshot = value.copyOf()
         super.onCharacteristicChanged(gatt, characteristic, value)
-        mExecutor.execute {
-            mManager.onCharacteristicChanged(gatt, characteristic, snapshot, receivedAtNs)
-        }
+        notification(gatt, characteristic, value)
     }
 
     // TODO: remove this override when minSdkVersion >= 33
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-        val receivedAtNs = System.nanoTime()
         super.onCharacteristicChanged(gatt, characteristic)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return
         }
-        val value = characteristic.value.copyOf()
-        mExecutor.execute {
-            mManager.onCharacteristicChanged(gatt, characteristic, value, receivedAtNs)
-        }
+        notification(gatt, characteristic, characteristic.value)
     }
 
     override fun onDescriptorRead(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int, value: ByteArray) {

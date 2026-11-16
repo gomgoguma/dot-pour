@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:bluetooth_low_energy_platform_interface/bluetooth_low_energy_platform_interface.dart';
 import 'package:flutter/widgets.dart' hide ConnectionState;
+import 'package:flutter/services.dart';
 
 import 'my_api.dart';
 import 'my_api.g.dart';
@@ -64,6 +64,17 @@ final class MyCentralManager extends PlatformCentralManager
       return;
     }
     _getState();
+    unawaited(_resumeMeasurements());
+  }
+
+  Future<void> _resumeMeasurements() async {
+    try {
+      await const MethodChannel(
+        'dot_pour/ble_latency',
+      ).invokeMethod<void>('resume').timeout(const Duration(seconds: 1));
+    } catch (_) {
+      // Link tuning is best-effort and must not disrupt an existing stream.
+    }
   }
 
   @override

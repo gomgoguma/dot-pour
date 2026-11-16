@@ -92,6 +92,16 @@ class MyPeripheralManager(context: Context, binaryMessenger: BinaryMessenger) : 
     private val server get() = mServer ?: throw IllegalStateException()
     private val executor get() = ContextCompat.getMainExecutor(context) as Executor
 
+    override fun dispose() {
+        if (mAdvertising) {
+            try { stopAdvertising() } catch (_: Exception) { }
+            mAdvertising = false
+        }
+        try { mServer?.close() } catch (_: Exception) { }
+        mServer = null
+        super.dispose()
+    }
+
     override fun initialize(): MyPeripheralManagerArgs {
         if (mAdvertising) {
             stopAdvertising()

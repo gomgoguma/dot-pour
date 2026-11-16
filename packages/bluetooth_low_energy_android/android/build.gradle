@@ -55,6 +55,8 @@ android {
     }
 
     testOptions {
+        // Lifecycle tests mock Android resources and verify their release calls.
+        unitTests.returnDefaultValues = true
         unitTests.all {
             useJUnitPlatform()
 

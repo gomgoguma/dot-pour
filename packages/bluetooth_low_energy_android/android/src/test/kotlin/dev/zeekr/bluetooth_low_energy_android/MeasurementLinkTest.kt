@@ -4,6 +4,20 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class MeasurementLinkTest {
+    @Test
+    fun `resume reapplies priority only for subscribed measurement links`() {
+        val requests = mutableListOf<Boolean>()
+        val link = MeasurementLink({ requests.add(it); true })
+        link.onResume()
+        assertEquals(emptyList<Boolean>(), requests)
+        link.setStreaming(true)
+        repeat(5) { link.onResume() }
+        assertEquals(6, requests.count { it })
+        assertEquals(5, link.snapshot()["resume_priority_requests"])
+        link.setStreaming(false)
+        link.onResume()
+        assertEquals(7, requests.size)
+    }
     private fun weight() = ByteArray(17).also {
         byteArrayOf(0xA5.toByte(), 0x5A, 1, 1, 0, 9).copyInto(it)
     }

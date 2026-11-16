@@ -34,7 +34,8 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     private val mAPI: MyCentralManagerFlutterAPI
 
     private val mScanCallback: ScanCallback by lazy { MyScanCallback(this) }
-    private val mBluetoothGattCallback: BluetoothGattCallback by lazy { MyBluetoothGattCallback(this, executor) }
+    private val mBluetoothGattCallback by lazy { MyBluetoothGattCallback(this, executor) }
+    private var disposed = false
 
     private var mDiscovering: Boolean
 
@@ -46,14 +47,16 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
 
     fun measurementLinkSnapshot(): Map<String, Any?> = mapOf(
         "source" to "android_gatt_callback",
-        "scope" to "complete_weight_notifications",
+        "scope" to "forwarded complete_weight_notifications; may be coalesced under backpressure",
         "links" to measurementLinks.values.map { it.snapshot() },
+        "notification_delivery" to mBluetoothGattCallback.deliverySnapshot(),
     )
 
     fun beginMeasurementCapture(): Map<String, Any?> {
         captureLinks.forEach { it.endCapture() }
         captureLinks = measurementLinks.values.toList()
         captureLinks.forEach { it.beginCapture() }
+        mBluetoothGattCallback.beginDeliveryCapture()
         return mapOf("available" to captureLinks.isNotEmpty())
     }
 
@@ -63,11 +66,52 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
         captureLinks = emptyList()
         return mapOf(
             "source" to "android_gatt_callback",
-            "scope" to "recording_window; last 600 samples per statistic",
+            "scope" to "recording_window; last 600 forwarded samples per statistic",
             "timing" to "Native callback through Dart notification handler and reply; roundtrip upper bound, not sensor latency",
             "available" to snapshots.isNotEmpty(),
             "links" to snapshots,
+            "notification_delivery" to mBluetoothGattCallback.endDeliveryCapture(),
         )
+    }
+
+    fun resumeMeasurementLinks() {
+        if (!disposed) measurementLinks.values.forEach { it.onResume() }
+    }
+
+    override fun dispose() {
+        if (disposed) return
+        disposed = true
+        mBluetoothGattCallback.shutdown()
+        if (mDiscovering) {
+            try { stopDiscovery() } catch (_: Exception) { }
+        }
+        measurementLinks.values.forEach { it.setStreaming(false) }
+        // Engine teardown does not guarantee that Dart widgets were disposed.
+        // Release the native clients here, even if disconnect callbacks never run.
+        val gatts = mGATTs.values.toList()
+        mGATTs.clear()
+        for (gatt in gatts) {
+            try { gatt.disconnect() } catch (_: Exception) { }
+            try { gatt.close() } catch (_: Exception) { }
+        }
+        measurementLinks.clear()
+        captureLinks = emptyList()
+        mBluetoothGattCallback.endDeliveryCapture()
+        mDevices.clear()
+        mCharacteristics.clear()
+        mDescriptors.clear()
+        mAuthorizeCallback = null
+        mStartDiscoveryCallback = null
+        mConnectCallbacks.clear()
+        mDisconnectCallbacks.clear()
+        mRequestMtuCallbacks.clear()
+        mReadRssiCallbacks.clear()
+        mDiscoverServicesCallbacks.clear()
+        mReadCharacteristicCallbacks.clear()
+        mWriteCharacteristicCallbacks.clear()
+        mReadDescriptorCallbacks.clear()
+        mWriteDescriptorCallbacks.clear()
+        super.dispose()
     }
 
     private fun measurementLink(gatt: BluetoothGatt): MeasurementLink =
@@ -134,6 +178,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     private val executor get() = ContextCompat.getMainExecutor(context) as Executor
 
     override fun initialize(): MyCentralManagerArgs {
+        mBluetoothGattCallback.closeAllNotifications()
         if (mDiscovering) {
             stopDiscovery()
         }
@@ -409,6 +454,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (disposed) return
         if (intent.action != BluetoothAdapter.ACTION_STATE_CHANGED) {
             return
         }
@@ -446,6 +492,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     }
 
     fun onScanResult(result: ScanResult) {
+        if (disposed) return
         val device = result.device
         val peripheralArgs = device.toPeripheralArgs()
         val addressArgs = peripheralArgs.addressArgs
@@ -458,6 +505,11 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         val device = gatt.device
         val addressArgs = device.address // check connection state.
+        // Late callbacks from an old GATT must not tear down a replacement.
+        if (disposed || mGATTs[addressArgs] !== gatt) {
+            if (newState == BluetoothProfile.STATE_DISCONNECTED) gatt.close()
+            return
+        }
         if (newState == BluetoothProfile.STATE_DISCONNECTED) {
             measurementLinks.remove(addressArgs)
             gatt.close()
@@ -535,6 +587,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
         val device = gatt.device
         val addressArgs = device.address
+        if (disposed || mGATTs[addressArgs] !== gatt) return
         val result = if (status == BluetoothGatt.GATT_SUCCESS) {
             val peripheralArgs = device.toPeripheralArgs()
             val mtuArgs = mtu.args
@@ -608,8 +661,9 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
         }
     }
 
-    fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, receivedAtNs: Long) {
+    fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, receivedAtNs: Long, done: (Boolean) -> Unit) {
         val device = gatt.device
+        if (disposed || mGATTs[device.address] !== gatt) { done(false); return }
         val replyTiming = if (characteristic.uuid == measurementUUID) {
             measurementLinks[device.address]?.notification(value, receivedAtNs)
         } else null
@@ -617,6 +671,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
         val characteristicArgs = characteristic.toArgs()
         mAPI.onCharacteristicNotified(peripheralArgs, characteristicArgs, value) { result ->
             replyTiming?.invoke(result.isSuccess)
+            done(result.isSuccess)
         }
     }
 
