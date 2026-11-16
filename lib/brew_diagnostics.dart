@@ -83,13 +83,16 @@ class BrewDiagnostics {
     _add('frame', {'seq': sequence, 'raw_g': raw, 'water_g': water});
   }
 
-  String export({required String version, required String platform}) =>
-      jsonEncode({
-        'app': 'Dot Pour',
-        'version': version,
-        'platform': platform,
-        'timing':
-            'App receipt and Flutter frame completion; not sensor timestamps',
-        'events': _events.toList(),
-      });
+  String export({
+    required String version,
+    required String platform,
+    Map<String, Object?> connection = const {},
+  }) => jsonEncode({
+    'app': 'Dot Pour',
+    'version': version,
+    'platform': platform,
+    if (connection.isNotEmpty) 'connection_snapshot_at_export': connection,
+    'timing': 'App receipt and Flutter frame completion; not sensor timestamps',
+    'events': _events.toList(),
+  });
 }

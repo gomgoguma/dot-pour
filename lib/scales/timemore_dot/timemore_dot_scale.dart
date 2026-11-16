@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:flutter/services.dart';
 import '../scale.dart';
+import '../android_link_diagnostics.dart';
 import 'protocol.dart';
 
 class TimemoreDotScale extends CoffeeScale {
@@ -27,6 +28,10 @@ class TimemoreDotScale extends CoffeeScale {
     _initialize();
     await _manager!.showAppSettings();
   }
+
+  @override
+  Future<Map<String, Object?>> connectionDiagnostics() async =>
+      Platform.isAndroid && connected ? await readAndroidLinkDiagnostics() : {};
 
   static const modelInfo = ScaleInfo(
     id: 'timemore-dot',

@@ -1,0 +1,7 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # Upstream Pigeon input is not part of the runtime. Regenerating it requires
+    # this package's own dev dependencies, rather than the consuming app's.
+    - my_api.dart

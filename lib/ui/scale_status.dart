@@ -23,6 +23,7 @@ class ScaleStatusSheet extends StatefulWidget {
 class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
   String version = '확인 중';
   bool copied = false;
+  bool copying = false;
 
   @override
   void initState() {
@@ -116,14 +117,16 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
                     const SizedBox(height: 12),
                     FilledButton.tonal(
                       onPressed:
-                          () => setState(() {
-                            copied = false;
-                            if (diagnostic.recording) {
-                              diagnostic.stop();
-                            } else {
-                              diagnostic.start();
-                            }
-                          }),
+                          copying
+                              ? null
+                              : () => setState(() {
+                                copied = false;
+                                if (diagnostic.recording) {
+                                  diagnostic.stop();
+                                } else {
+                                  diagnostic.start();
+                                }
+                              }),
                       child: Text(
                         diagnostic.recording ? '기록 중지' : '새 진단 기록 시작',
                       ),
@@ -138,18 +141,28 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
                       ),
                     TextButton.icon(
                       onPressed:
-                          diagnostic.count == 0 || diagnostic.recording
+                          diagnostic.count == 0 ||
+                                  diagnostic.recording ||
+                                  copying
                               ? null
                               : () async {
-                                await Clipboard.setData(
-                                  ClipboardData(
-                                    text: diagnostic.export(
-                                      version: version,
-                                      platform: Platform.operatingSystem,
+                                setState(() => copying = true);
+                                try {
+                                  final connection =
+                                      await scale.connectionDiagnostics();
+                                  await Clipboard.setData(
+                                    ClipboardData(
+                                      text: diagnostic.export(
+                                        version: version,
+                                        platform: Platform.operatingSystem,
+                                        connection: connection,
+                                      ),
                                     ),
-                                  ),
-                                );
-                                if (mounted) setState(() => copied = true);
+                                  );
+                                  if (mounted) setState(() => copied = true);
+                                } finally {
+                                  if (mounted) setState(() => copying = false);
+                                }
                               },
                       icon: Icon(copied ? Icons.check : Icons.copy, size: 18),
                       label: Text(copied ? '복사했어요' : '진단 기록 복사'),

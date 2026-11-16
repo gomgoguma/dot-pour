@@ -24,6 +24,7 @@ abstract class CoffeeScale extends ChangeNotifier {
   String get discoveryStatus => scanning ? '주변 기기 검색 중' : '검색 대기';
   bool get canOpenSettings => false;
   Future<void> openSettings() async {}
+  Future<Map<String, Object?>> connectionDiagnostics() async => {};
 
   Duration get readingTimeout => const Duration(seconds: 2);
   bool get fresh =>
