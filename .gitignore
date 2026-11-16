@@ -33,6 +33,7 @@ migrate_working_dir/
 .pub/
 /build/
 /dist/
+/.tools/
 *.jks
 *.keystore
 key.properties

@@ -33,12 +33,14 @@ flutter test
 flutter run -d windows
 ```
 
-Android는 Android SDK 및 라이선스 설정이 필요합니다. 실제 BLE는 실물 기기에서 테스트합니다.
+Android는 Android SDK, NDK 27.0.12077973 및 라이선스 설정이 필요합니다. Java는 `jlink`를 포함하는 **정식 JDK 17**을 사용합니다. IDE에 포함된 경량 Java 런타임은 빌드에 필요한 도구가 없을 수 있습니다. 실제 BLE는 실물 기기에서 테스트합니다.
 
 ```sh
 flutter run -d <android-device-id>
 flutter build apk --debug
 ```
+
+Windows에서 다른 Java 버전이 기본으로 선택되는 경우, 빌드할 터미널의 `JAVA_HOME`을 JDK 17 설치 폴더로 설정한 뒤 실행합니다. 시스템 전역 설정을 변경할 필요는 없습니다.
 
 iOS는 macOS, Xcode, 서명 설정과 실물 iPhone이 필요합니다. Windows에서 iOS 빌드나 기기 테스트를 할 수는 없습니다.
 
@@ -46,7 +48,7 @@ iOS는 macOS, Xcode, 서명 설정과 실물 iPhone이 필요합니다. Windows�
 flutter build ios --no-codesign
 ```
 
-Windows 빌드에는 Visual Studio C++ 빌드 도구가 필요합니다. Flutter 플러그인 링크 오류가 발생하면 Windows 개발자 모드를 사용하거나 `powershell -File tool/windows-plugin-links.ps1`로 프로젝트 내부에 junction을 생성할 수 있습니다.
+Windows 빌드에는 Visual Studio C++ 빌드 도구가 필요합니다. Flutter 플러그인 링크 오류가 발생하면 Windows 개발자 모드를 사용하거나 `powershell -File tool/windows-plugin-links.ps1`로 프로젝트 내부에 junction을 생성할 수 있습니다. 링크를 만든 뒤 **`flutter pub get`을 다시 실행**해 네이티브 플러그인 등록까지 완료합니다.
 
 ## 동작과 제한
 
@@ -68,3 +70,12 @@ Windows 빌드에는 Visual Studio C++ 빌드 도구가 필요합니다. Flutter
 - `test/`: 프로토콜, 계산, 화면 흐름 검증
 
 Windows 실행 파일을 전달할 때는 `Release` 폴더 전체가 필요합니다. Android debug APK는 개발 테스트용이며 스토어 배포용 서명이 아닙니다.
+
+## 검증 현황
+
+- `flutter analyze`: 문제 없음
+- `flutter test`: 12개 통과 (계산, 프로토콜, 모바일 크기 데모 화면)
+- Windows release 빌드: 성공, 네이티브 BLE 플러그인 DLL 포함
+- Android debug APK 빌드: 성공 (JDK 17, NDK 27)
+- Windows 데모 화면: 진행률 표시 확인
+- 실제 도트 통신과 iOS 빌드·실행: 미검증
