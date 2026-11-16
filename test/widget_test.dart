@@ -28,10 +28,10 @@ void main() {
     await tester.pump();
     tester.widget<Slider>(find.byType(Slider)).onChanged!(160);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('50.0%'), findsOneWidget);
+    expect(find.text('50.0 %', findRichText: true), findsOneWidget);
     tester.widget<Slider>(find.byType(Slider)).onChanged!(352);
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('110.0%'), findsOneWidget);
+    expect(find.text('110.0 %', findRichText: true), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

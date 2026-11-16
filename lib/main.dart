@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
+import 'brew_controller.dart';
 import 'brew_session.dart';
-import 'dot_scale.dart';
-
-const ink = Color(0xff202b27);
-const paper = Color(0xfff6f3eb);
-const accent = Color(0xffd6f18c);
+import 'ui/brew_chart.dart';
+import 'ui/brew_settings.dart';
+import 'ui/device_picker.dart';
+import 'ui/recipe_library.dart';
+import 'ui/style.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,642 +16,714 @@ Future<void> main() async {
 
 class DotPourApp extends StatelessWidget {
   final SharedPreferences preferences;
-  const DotPourApp({super.key, required this.preferences});
+  final BrewController? controller;
+  const DotPourApp({super.key, required this.preferences, this.controller});
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Dot Pour',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: paper,
-      colorScheme: ColorScheme.fromSeed(seedColor: ink, surface: paper),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-    ),
-    home: BrewScreen(preferences: preferences),
+    theme: pourTheme(),
+    home: BrewScreen(preferences: preferences, controller: controller),
   );
 }
 
 class BrewScreen extends StatefulWidget {
   final SharedPreferences preferences;
-  const BrewScreen({super.key, required this.preferences});
+  final BrewController? controller;
+  const BrewScreen({super.key, required this.preferences, this.controller});
   @override
   State<BrewScreen> createState() => _BrewScreenState();
 }
 
 class _BrewScreenState extends State<BrewScreen> {
-  final _scale = DotScale();
-  final _brew = BrewSession();
-  final _form = GlobalKey<FormState>();
-  late final TextEditingController _dose;
-  late final TextEditingController _ratio;
-  late final Timer _ticker;
-  DateTime? _lastSample;
-  bool _demo = false, _demoPouring = false, _alerted = false;
-  double _demoWeight = 0;
-  String? _notice;
-
-  @override
-  void initState() {
-    super.initState();
-    final dose = widget.preferences.getDouble('dose') ?? 20;
-    final ratio = widget.preferences.getDouble('ratio') ?? 16;
-    if (BrewSession.validate(dose, ratio) == null) {
-      _brew.dose = dose;
-      _brew.ratio = ratio;
-    }
-    _dose = TextEditingController(text: _number(_brew.dose));
-    _ratio = TextEditingController(text: _number(_brew.ratio));
-    _scale.addListener(_onScale);
-    _ticker = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (_demo && _brew.active) {
-        if (_demoPouring) _demoWeight += 0.6;
-        _brew.update(_demoWeight);
-        _targetAlert();
-      } else if (!_demo && _brew.active && !_scale.fresh) {
-        _interrupt('무게 데이터가 멈췄습니다. 연결을 확인하고 새 추출을 시작해 주세요.');
-      }
-      if (mounted) setState(() {});
-    });
-  }
-
-  String _number(double n) =>
-      n == n.roundToDouble() ? n.toInt().toString() : '$n';
-  double _parse(String text) =>
-      double.tryParse(text.trim().replaceAll(',', '.')) ?? double.nan;
-  bool get _setup => _brew.phase == BrewPhase.setup;
-  bool get _usable => _demo || (_scale.fresh && !_scale.reading!.overloaded);
-
-  void _onScale() {
-    if (!mounted || _demo) return;
-    if (_brew.active) {
-      if (!_scale.connected || !_scale.gramsConfirmed) {
-        _interrupt('연결이 끊겨 추출을 중단했습니다. 다시 연결한 뒤 새로 시작해 주세요.');
-      } else if (_scale.reading?.overloaded == true) {
-        _interrupt('저울 용량을 초과했습니다. 추출을 중단했습니다.');
-      } else if (_scale.fresh && _lastSample != _scale.lastReading) {
-        _lastSample = _scale.lastReading;
-        if (_brew.vesselRemoved(_scale.reading!.grams)) {
-          _interrupt('시작 무게보다 2g 이상 줄었습니다. 용기 위치나 영점을 확인해 주세요.');
-        } else {
-          _brew.update(_scale.reading!.grams);
-          _targetAlert();
-        }
-      }
-    }
-    setState(() {});
-  }
-
-  void _keepAwake(bool enabled) {
-    unawaited(
-      WakelockPlus.toggle(enable: enabled).catchError((Object error) {
-        debugPrint('Screen wake lock unavailable: $error');
-      }),
-    );
-  }
-
-  void _targetAlert() {
-    if (_brew.reached && !_alerted) {
-      _alerted = true;
-      unawaited(HapticFeedback.mediumImpact());
-      unawaited(SystemSound.play(SystemSoundType.click));
-    }
-  }
-
-  void _interrupt(String message) {
-    _brew.interrupt();
-    _demoPouring = false;
-    _notice = message;
-    _keepAwake(false);
-  }
-
-  void _start() {
-    if (!_form.currentState!.validate() || !_usable || _scale.busy) return;
-    final dose = _parse(_dose.text), ratio = _parse(_ratio.text);
-    _brew.start(
-      rawGrams: _demo ? _demoWeight : _scale.reading!.grams,
-      dose: dose,
-      ratio: ratio,
-    );
-    _lastSample = _scale.lastReading;
-    _notice = null;
-    _alerted = false;
-    _keepAwake(true);
-    unawaited(widget.preferences.setDouble('dose', dose));
-    unawaited(widget.preferences.setDouble('ratio', ratio));
-    setState(() {});
-  }
-
-  void _reset() {
-    _brew.reset();
-    _demoWeight = 0;
-    _demoPouring = false;
-    _notice = null;
-    _keepAwake(false);
-    setState(() {});
-  }
-
-  Future<void> _toggleDemo() async {
-    if (_brew.active || _scale.busy) return;
-    await _scale.disconnect();
-    if (!mounted) return;
-    _demo = !_demo;
-    _reset();
-  }
-
-  void _editRecipe() {
-    final dose = _parse(_dose.text), ratio = _parse(_ratio.text);
-    if (BrewSession.validate(dose, ratio) == null) {
-      _brew.dose = dose;
-      _brew.ratio = ratio;
-    }
-    setState(() {});
-  }
-
-  Future<void> _devices() async {
-    if (_demo || _brew.active || _scale.busy) return;
-    var showAll = false;
-    unawaited(_scale.scan());
-    await showModalBottomSheet<void>(
+  late final c = widget.controller ?? BrewController(widget.preferences);
+  Future<void> _settings() => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder:
+        (_) => BrewSettingsSheet(
+          dose: c.brew.dose,
+          ratio: c.brew.ratio,
+          scaling: c.reference != null,
+          onSave: c.configure,
+        ),
+  );
+  Future<void> _library() => Navigator.push(
+    context,
+    MaterialPageRoute<void>(builder: (_) => RecipeLibrary(controller: c)),
+  );
+  Future<void> _save() async {
+    if (!c.canSave) return;
+    final now = DateTime.now();
+    final name = TextEditingController(text: '${now.month}월 ${now.day}일의 한 잔');
+    String? error;
+    bool busy = false;
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+      barrierDismissible: false,
       builder:
           (context) => StatefulBuilder(
             builder:
-                (context, setSheetState) => AnimatedBuilder(
-                  animation: _scale,
-                  builder: (context, _) {
-                    final devices =
-                        _scale.devices.values
-                            .where((d) => showAll || DotScale.likelyDot(d))
-                            .toList()
-                          ..sort((a, b) => b.rssi.compareTo(a.rssi));
-                    return SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-                        child: SizedBox(
-                          height: MediaQuery.sizeOf(context).height * 0.65,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '도트 연결',
-                                style:
-                                    Theme.of(context).textTheme.headlineSmall,
-                              ),
-                              const SizedBox(height: 8),
-                              const Text('도트를 켜고, 연결 중인 TIMEMORE 앱을 종료해 주세요.'),
-                              if (_scale.scanning || _scale.busy) ...[
-                                const SizedBox(height: 16),
-                                const LinearProgressIndicator(),
-                              ],
-                              SwitchListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: const Text('모든 BLE 기기 보기'),
-                                subtitle: const Text('이름이 바뀐 도트가 검색되지 않을 때'),
-                                value: showAll,
-                                onChanged:
-                                    (value) =>
-                                        setSheetState(() => showAll = value),
-                              ),
-                              if (_scale.error case final error?)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Text(
-                                    error,
-                                    style: const TextStyle(color: Colors.red),
-                                  ),
-                                ),
-                              Expanded(
-                                child:
-                                    devices.isEmpty
-                                        ? Center(
-                                          child: Text(
-                                            _scale.scanning
-                                                ? '근처 도트를 찾고 있습니다…'
-                                                : '검색된 기기가 없습니다. 전원과 권한을 확인해 주세요.',
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        )
-                                        : ListView.builder(
-                                          itemCount: devices.length,
-                                          itemBuilder: (context, index) {
-                                            final device = devices[index];
-                                            return ListTile(
-                                              contentPadding: EdgeInsets.zero,
-                                              leading: const Icon(
-                                                Icons.bluetooth,
-                                              ),
-                                              title: Text(
-                                                device.advertisement.name ??
-                                                    '이름 없는 BLE 기기',
-                                              ),
-                                              subtitle: Text(
-                                                '${device.peripheral.uuid}\n${device.rssi} dBm',
-                                              ),
-                                              trailing: const Icon(
-                                                Icons.chevron_right,
-                                              ),
-                                              enabled: !_scale.busy,
-                                              onTap: () async {
-                                                await _scale.connect(device);
-                                                if (context.mounted &&
-                                                    _scale.connected) {
-                                                  Navigator.pop(context);
-                                                }
-                                              },
-                                            );
-                                          },
-                                        ),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed:
-                                    _scale.busy || _scale.scanning
-                                        ? null
-                                        : _scale.scan,
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('다시 검색'),
-                              ),
-                            ],
-                          ),
+                (context, setDialogState) => AlertDialog(
+                  title: const Text('이 한 잔을 기억할까요?'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${number(c.brew.water)}g · ${clockText(c.brew.seconds)}${c.demo ? ' · 데모 기록' : ''}',
+                        style: const TextStyle(color: muted),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '실제 그래프와 붓기 단계를 저장해 다음 추출에서 따라갈 수 있어요.',
+                        style: TextStyle(
+                          color: muted,
+                          fontSize: 12,
+                          height: 1.6,
                         ),
                       ),
-                    );
-                  },
+                      const SizedBox(height: 18),
+                      TextField(
+                        key: const Key('save-recipe-name'),
+                        controller: name,
+                        autofocus: true,
+                        maxLength: 60,
+                        decoration: InputDecoration(
+                          labelText: '레시피 이름',
+                          errorText: error,
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: busy ? null : () => Navigator.pop(context),
+                      child: const Text('나중에'),
+                    ),
+                    FilledButton(
+                      onPressed:
+                          busy
+                              ? null
+                              : () async {
+                                if (name.text.trim().isEmpty) {
+                                  setDialogState(() => error = '이름을 입력해 주세요.');
+                                  return;
+                                }
+                                setDialogState(() => busy = true);
+                                try {
+                                  await c.saveFinished(name.text.trim());
+                                  if (context.mounted) Navigator.pop(context);
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    setDialogState(() {
+                                      error = '$e';
+                                      busy = false;
+                                    });
+                                  }
+                                }
+                              },
+                      child: Text(busy ? '저장 중…' : '저장'),
+                    ),
+                  ],
                 ),
           ),
     );
-    await _scale.stopScan();
+    // Dialog route animations may still have references to its text field.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    name.dispose();
+  }
+
+  Future<void> _finish() async {
+    c.finish();
+    if (c.canSave) await _save();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final phase = switch (_brew.phase) {
-      BrewPhase.setup => '나만의 비율로, 한 잔',
-      BrewPhase.ready => '물을 부으면 시작해요',
-      BrewPhase.pouring => _brew.reached ? '목표 물량에 도달했어요' : '천천히, 원하는 만큼',
-      BrewPhase.finished => '오늘의 한 잔',
-      BrewPhase.interrupted => '추출이 중단되었어요',
-    };
-    final seconds = _brew.elapsed.inSeconds;
-    final timer =
-        '${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Row(
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: c,
+    builder: (context, _) {
+      final brew = c.brew;
+      final status = switch (brew.phase) {
+        BrewPhase.setup =>
+          c.reference == null ? '오늘도, 나다운 한 잔.' : '좋았던 한 잔을 다시.',
+        BrewPhase.ready => '첫 물줄기를 기다려요.',
+        BrewPhase.pouring => brew.reached ? '목표 물량에 도달했어요.' : '지금의 한 잔에 집중해요.',
+        BrewPhase.finished =>
+          c.savedId != null ? '다음에도 기억할게요.' : '한 잔이 완성되었어요.',
+        BrewPhase.interrupted => '추출이 중단되었어요.',
+      };
+      return Scaffold(
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.circle, size: 16, color: ink),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'dot pour',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -1,
-                          ),
+                    if (c.setup)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: c.usable && !c.scale.busy ? c.start : null,
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('추출 시작'),
                         ),
-                      ),
-                    ),
-                    if (_demo)
-                      const Chip(
-                        label: Text('DEMO'),
-                        avatar: Icon(Icons.science_outlined, size: 16),
+                      )
+                    else if (brew.active)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _finish,
+                          icon: const Icon(Icons.stop_rounded),
+                          label: const Text('추출 마치기'),
+                        ),
                       )
                     else
-                      TextButton.icon(
-                        onPressed:
-                            _brew.active || _scale.busy
-                                ? null
-                                : (_scale.connected
-                                    ? () => _scale.disconnect()
-                                    : _devices),
-                        icon: Icon(
-                          _scale.connected
-                              ? Icons.bluetooth_connected
-                              : Icons.bluetooth,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: c.reset,
+                              child: const Text('새 추출'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: c.canSave ? _save : null,
+                              icon: Icon(
+                                c.savedId != null
+                                    ? Icons.check
+                                    : Icons.bookmark_add_outlined,
+                                size: 19,
+                              ),
+                              label: Text(
+                                c.savedId != null ? '저장 완료' : '레시피로 저장',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (!brew.active)
+                      SizedBox(
+                        height: 34,
+                        child: TextButton(
+                          onPressed: c.scale.busy ? null : c.toggleDemo,
+                          child: Text(
+                            c.demo ? '데모 종료 · 실제 도트 연결' : '저울 없이 데모로 체험',
+                            style: const TextStyle(fontSize: 11, color: muted),
+                          ),
                         ),
-                        label: Text(_scale.connected ? '연결 해제' : '도트 연결'),
                       ),
                   ],
                 ),
-                const SizedBox(height: 22),
-                Text(
-                  phase,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _demo
-                      ? '가상 저울로 진행률을 미리 확인해 보세요.'
-                      : _scale.connected
-                      ? '${_scale.deviceName} · ${_scale.battery == null ? '배터리 확인 중' : '배터리 ${_scale.battery}%'}'
-                      : 'TIMEMORE Black Mirror Dot과 함께하는 브루잉',
-                  style: const TextStyle(color: Color(0xff626c65)),
-                ),
-                const SizedBox(height: 24),
-                Form(
-                  key: _form,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _dose,
-                          enabled: _setup,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: '원두량',
-                            suffixText: 'g',
-                          ),
-                          validator:
-                              (_) => BrewSession.validate(
-                                _parse(_dose.text),
-                                _parse(_ratio.text),
-                              ),
-                          onChanged: (_) => _editRecipe(),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _ratio,
-                          enabled: _setup,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: '원두 : 물',
-                            prefixText: '1 : ',
-                          ),
-                          validator:
-                              (_) =>
-                                  BrewSession.validate(
-                                            _parse(_dose.text),
-                                            _parse(_ratio.text),
-                                          ) ==
-                                          null
-                                      ? null
-                                      : '입력값을 확인해 주세요.',
-                          onChanged: (_) => _editRecipe(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  children:
-                      [15, 16, 16.7, 17, 18]
-                          .map(
-                            (ratio) => ChoiceChip(
-                              label: Text('1:$ratio'),
-                              selected: _parse(_ratio.text) == ratio,
-                              onSelected:
-                                  _setup
-                                      ? (_) {
-                                        _ratio.text = '$ratio';
-                                        _editRecipe();
-                                      }
-                                      : null,
-                            ),
-                          )
-                          .toList(),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(28),
-                  decoration: BoxDecoration(
-                    color: ink,
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            _brew.phase == BrewPhase.finished
-                                ? '최종 진행률'
-                                : '목표 물량 대비',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          const Spacer(),
-                          Text(
-                            timer,
-                            style: const TextStyle(
-                              color: accent,
-                              fontSize: 20,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Semantics(
-                        label: '진행률 ${_brew.percent.toStringAsFixed(1)} 퍼센트',
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '${_brew.percent.toStringAsFixed(1)}%',
-                            style: const TextStyle(
-                              color: accent,
-                              fontSize: 84,
-                              height: 1.15,
-                              letterSpacing: -5,
-                              fontWeight: FontWeight.w600,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: (_brew.percent / 100).clamp(0, 1),
-                          minHeight: 8,
-                          backgroundColor: Colors.white12,
-                          color: accent,
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      Wrap(
-                        spacing: 28,
-                        runSpacing: 16,
-                        children: [
-                          _metric(
-                            '부은 물',
-                            '${_brew.water.toStringAsFixed(1)} g',
-                          ),
-                          _metric('목표 물량', '${_number(_brew.target)} g'),
-                          _metric(
-                            _brew.extra > 0 ? '초과 물량' : '남은 물',
-                            '${(_brew.extra > 0 ? _brew.extra : _brew.remaining).toStringAsFixed(1)} g',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (_notice != null || (!_demo && _scale.error != null))
-                  _message(_notice ?? _scale.error!),
-                if (!_demo && _scale.connected)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _scale.reading?.overloaded == true
-                                ? '저울 용량 초과'
-                                : !_scale.fresh
-                                ? '무게 수신 대기 중…'
-                                : '현재 저울  ${_scale.reading!.grams.toStringAsFixed(1)} g',
-                            style: const TextStyle(color: Color(0xff626c65)),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed:
-                              _setup && !_scale.busy ? _scale.tare : null,
-                          child: const Text('영점 맞추기'),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (_demo && _brew.active) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.science_outlined),
-                      const SizedBox(width: 8),
-                      const Expanded(child: Text('데모 물량 조절')),
-                      TextButton(
-                        onPressed:
-                            () => setState(() => _demoPouring = !_demoPouring),
-                        child: Text(_demoPouring ? '붓기 멈춤' : '자동으로 붓기'),
-                      ),
-                    ],
-                  ),
-                  Slider(
-                    value: _demoWeight.clamp(0, _brew.target * 1.25),
-                    max: _brew.target * 1.25,
-                    onChanged:
-                        (value) => setState(() {
-                          _demoPouring = false;
-                          _demoWeight = value;
-                        }),
-                  ),
-                ],
-                if (_setup)
-                  FilledButton.icon(
-                    onPressed: _usable && !_scale.busy ? _start : null,
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('추출 시작'),
-                  )
-                else if (_brew.active)
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      _brew.finish();
-                      _demoPouring = false;
-                      _keepAwake(false);
-                      setState(() {});
-                    },
-                    icon: const Icon(Icons.stop_rounded),
-                    label: const Text('추출 마치기'),
-                  )
-                else
-                  FilledButton.icon(
-                    onPressed: _reset,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('새 추출'),
-                  ),
-                const SizedBox(height: 14),
-                Text(
-                  _setup
-                      ? '서버·드리퍼·원두를 모두 올린 뒤 시작하세요.\n시작 시점의 무게를 0%로 잡고, 첫 물줄기에 타이머가 켜집니다.'
-                      : '서버와 드리퍼를 저울 위에 그대로 두세요.\n목표에 도달한 뒤에도 물량과 시간은 계속 표시됩니다.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.7,
-                    color: Color(0xff626c65),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _brew.active || _scale.busy ? null : _toggleDemo,
-                  child: Text(_demo ? '데모 종료 · 실제 도트 연결' : '저울 없이 데모로 체험'),
-                ),
-                const SizedBox(height: 10),
-              ],
+              ),
             ),
           ),
         ),
+        body: SafeArea(
+          bottom: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: SingleChildScrollView(
+                key: const Key('brew-scroll'),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.blur_circular_rounded,
+                          size: 25,
+                          color: ink,
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'dot pour',
+                            style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.7,
+                            ),
+                          ),
+                        ),
+                        if (c.demo)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10),
+                            child: Text(
+                              'DEMO',
+                              style: TextStyle(
+                                fontSize: 10,
+                                letterSpacing: 1.5,
+                                color: copper,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        else
+                          TextButton.icon(
+                            onPressed:
+                                brew.active || c.scale.busy
+                                    ? null
+                                    : () async {
+                                      if (c.scale.connected) {
+                                        await c.scale.disconnect();
+                                      } else {
+                                        await showDevicePicker(
+                                          context,
+                                          c.scale,
+                                        );
+                                      }
+                                    },
+                            icon: Icon(
+                              c.scale.connected
+                                  ? Icons.bluetooth_connected
+                                  : Icons.bluetooth,
+                              size: 17,
+                            ),
+                            label: Text(
+                              c.scale.connected ? '연결됨' : '연결',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        IconButton(
+                          tooltip: '내 레시피',
+                          onPressed: _library,
+                          icon: const Icon(Icons.menu_book_outlined, size: 23),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      status,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: c.setup ? _settings : null,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+                        decoration: BoxDecoration(
+                          color: mint,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.coffee_outlined,
+                              size: 17,
+                              color: ink,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '원두 ${number(brew.dose)}g   ·   1:${number(brew.ratio)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            if (c.setup)
+                              const Row(
+                                children: [
+                                  Text('설정', style: TextStyle(fontSize: 11)),
+                                  SizedBox(width: 4),
+                                  Icon(Icons.tune_rounded, size: 17),
+                                ],
+                              )
+                            else
+                              const Icon(
+                                Icons.lock_outline_rounded,
+                                size: 14,
+                                color: muted,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (c.reference != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.bookmark_outline,
+                              size: 16,
+                              color: copper,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                c.reference!.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: copper,
+                                ),
+                              ),
+                            ),
+                            if (c.setup)
+                              IconButton(
+                                tooltip: '레시피 해제',
+                                onPressed: c.clearRecipe,
+                                icon: const Icon(Icons.close, size: 16),
+                              ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Column(
+                        children: [
+                          IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _MetricCell(
+                                    '현재 물량',
+                                    brew.water.toStringAsFixed(1),
+                                    'g',
+                                  ),
+                                ),
+                                const VerticalDivider(
+                                  width: 1,
+                                  indent: 18,
+                                  endIndent: 18,
+                                ),
+                                Expanded(
+                                  child: _MetricCell(
+                                    '목표 물량',
+                                    number(brew.target),
+                                    'g',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 20, endIndent: 20),
+                          IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _MetricCell(
+                                    '물량 대비',
+                                    brew.percent.toStringAsFixed(1),
+                                    '%',
+                                    highlight: true,
+                                  ),
+                                ),
+                                const VerticalDivider(
+                                  width: 1,
+                                  indent: 18,
+                                  endIndent: 18,
+                                ),
+                                Expanded(
+                                  child: _MetricCell(
+                                    '유량',
+                                    brew.flow.toStringAsFixed(1),
+                                    'g/s',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    SectionLabel(
+                      '추출 그래프',
+                      trailing: Row(
+                        children: [
+                          const Icon(
+                            Icons.timer_outlined,
+                            size: 15,
+                            color: muted,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            clockText(brew.seconds),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    BrewChart(
+                      points: brew.points,
+                      reference: c.reference,
+                      target: brew.target,
+                      seconds: brew.seconds,
+                      height:
+                          MediaQuery.sizeOf(context).width < 500 ? 160 : 212,
+                    ),
+                    if (c.guide != null) ...[
+                      const SizedBox(height: 14),
+                      _guide(),
+                    ],
+                    if (c.demo && brew.active) ...[
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.science_outlined,
+                            size: 17,
+                            color: copper,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              '데모 물량',
+                              style: TextStyle(fontSize: 12, color: muted),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: c.toggleDemoPour,
+                            child: Text(
+                              c.demoAuto
+                                  ? '붓기 멈춤'
+                                  : c.reference != null
+                                  ? '가이드 따라 붓기'
+                                  : '자동으로 붓기',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        key: const Key('demo-water'),
+                        value: c.demoWeight.clamp(0, brew.target * 1.25),
+                        max: brew.target * 1.25,
+                        onChanged: c.setDemoWeight,
+                      ),
+                    ],
+                    if (c.notice != null || (!c.demo && c.scale.error != null))
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff4e7d9),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          c.notice ?? c.scale.error!,
+                          style: const TextStyle(fontSize: 12, height: 1.5),
+                        ),
+                      ),
+                    if (!c.demo && c.scale.connected)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                c.scale.reading?.overloaded == true
+                                    ? '저울 용량 초과'
+                                    : !c.scale.fresh
+                                    ? '무게 수신 대기 중…'
+                                    : '저울 ${number(c.scale.reading!.grams)}g${c.scale.battery == null ? '' : '  ·  배터리 ${c.scale.battery}%'}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: muted,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed:
+                                  c.setup && !c.scale.busy
+                                      ? c.scale.tare
+                                      : null,
+                              child: const Text(
+                                '영점',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (c.setup)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 18),
+                        child: Text(
+                          '서버·드리퍼·원두를 올린 뒤 시작하세요.\n첫 물줄기부터 시간을 기록해요.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: muted,
+                            fontSize: 11,
+                            height: 1.6,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  Widget _guide() {
+    final guide = c.guide!;
+    final title =
+        guide.recipe.steps.isEmpty
+            ? '기록된 곡선을 따라 부어 주세요'
+            : guide.step == null
+            ? '물 붓기 완료 · 추출을 기다려요'
+            : guide.waiting
+            ? '${guide.stepIndex + 1}차까지 ${number(guide.step!.start - guide.seconds, 0)}초'
+            : '${guide.stepIndex + 1}차 붓기';
+    final difference = guide.difference;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xffefede4),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.route_outlined, size: 18, color: copper),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (guide.recipe.steps.isNotEmpty)
+                Text(
+                  '${guide.poursDone ? guide.recipe.steps.length : guide.stepIndex + 1}/${guide.recipe.steps.length}',
+                  style: const TextStyle(fontSize: 11, color: muted),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (guide.step != null)
+            Text(
+              '누적 ${number(guide.stepTarget)}g까지 · ${number(guide.targetFlow)}g/s로 붓기',
+              style: const TextStyle(fontSize: 13),
+            ),
+          if (guide.step == null)
+            Text(
+              '레시피 종료 ${clockText(guide.recipe.duration)}',
+              style: const TextStyle(fontSize: 13),
+            ),
+          const SizedBox(height: 6),
+          Text(
+            '지금 기준 ${number(guide.expected)}g  ·  ${difference >= 0 ? '+' : ''}${number(difference)}g 차이',
+            style: const TextStyle(fontSize: 11, color: muted),
+          ),
+          if (guide.recipe.steps.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: List.generate(
+                guide.recipe.steps.length,
+                (index) => Expanded(
+                  child: Container(
+                    height: 4,
+                    margin: EdgeInsets.only(
+                      right: index == guide.recipe.steps.length - 1 ? 0 : 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          index < guide.stepIndex
+                              ? ink
+                              : index == guide.stepIndex
+                              ? copper
+                              : line,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _metric(String label, String value) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12)),
-      const SizedBox(height: 6),
-      Text(
-        value,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontFeatures: [FontFeature.tabularFigures()],
-        ),
-      ),
-    ],
-  );
-  Widget _message(String text) => Container(
-    margin: const EdgeInsets.only(bottom: 16),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: const Color(0xffffe6ce),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Text(text),
-  );
   @override
   void dispose() {
-    _ticker.cancel();
-    _scale.removeListener(_onScale);
-    _scale.dispose();
-    _dose.dispose();
-    _ratio.dispose();
-    _keepAwake(false);
+    c.dispose();
     super.dispose();
   }
+}
+
+class _MetricCell extends StatelessWidget {
+  final String label, value, unit;
+  final bool highlight;
+  const _MetricCell(
+    this.label,
+    this.value,
+    this.unit, {
+    this.highlight = false,
+  });
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: muted)),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 45,
+          width: double.infinity,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: value,
+                    style: TextStyle(
+                      fontSize: 38,
+                      letterSpacing: -1.5,
+                      fontWeight: FontWeight.w500,
+                      color: highlight ? copper : ink,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' $unit',
+                    style: const TextStyle(fontSize: 14, color: muted),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
