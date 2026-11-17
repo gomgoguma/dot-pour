@@ -254,7 +254,7 @@ class _BrewScreenState extends State<BrewScreen> {
             ),
           ),
           bottom:
-              _page == 0
+              _page == 0 && c.setup
                   ? PreferredSize(
                     preferredSize: const Size.fromHeight(52),
                     child: Center(

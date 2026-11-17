@@ -2,6 +2,7 @@ import 'package:dot_pour/brew_controller.dart';
 import 'package:dot_pour/brew_session.dart';
 import 'package:dot_pour/main.dart';
 import 'package:dot_pour/scales/scale_registry.dart';
+import 'package:dot_pour/ui/brew_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -14,6 +15,8 @@ void main() {
     (tester) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+      tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
       addTearDown(tester.view.reset);
       SharedPreferences.setMockInitialValues({'scale.model': 'test'});
       final prefs = await SharedPreferences.getInstance();
@@ -58,6 +61,17 @@ void main() {
       expect(controller.brew.water, 3);
       expect(find.byKey(const Key('brew-elapsed')), findsOneWidget);
       expect(find.text('추출 시간'), findsNothing);
+      expect(find.text('Pour over'), findsNothing);
+      expect(find.text('Espresso'), findsNothing);
+      expect(
+        tester.getBottomRight(find.byType(BrewChart)).dy,
+        lessThan(tester.getTopLeft(find.text('추출 마치기')).dy),
+      );
+      controller.finish();
+      controller.reset();
+      await tester.pump();
+      expect(find.text('Pour over'), findsOneWidget);
+      expect(find.text('TARE'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },

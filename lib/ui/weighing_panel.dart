@@ -65,34 +65,32 @@ class WeighingPanel extends StatelessWidget {
     final connected = c.scale?.connected == true;
     final overloaded = !c.demo && c.scale?.reading?.overloaded == true;
     final instruction =
-        !connected && !c.demo
-            ? '저울을 연결하면 무게가 표시됩니다.'
+        busy
+            ? '저울의 영점을 확인하고 있어요.'
+            : !connected && !c.demo
+            ? '저울을 연결한 뒤\n서버와 드리퍼를 올려 주세요.'
             : confirmed != null
-            ? '추출 시작을 누르면 부은 물을 0g부터 기록합니다.'
+            ? '원두량을 확인했어요. 추출을 시작해 주세요.'
             : c.isDoseTared
-            ? '원두를 담고 무게를 확인해 주세요.'
+            ? '원두를 담아 무게를 확인해 주세요.'
             : c.hasSetupWeight
-            ? '영점을 누른 뒤 원두를 담아 주세요.'
-            : '서버와 드리퍼를 올린 뒤 영점을 눌러 주세요.';
+            ? 'TARE를 누른 뒤 원두를 담아 주세요.'
+            : '서버와 드리퍼를 올리고\nTARE를 눌러 주세요.';
     return Container(
       key: const Key('weighing-panel'),
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
+          Stack(
+            alignment: Alignment.topRight,
             children: [
-              Text(
-                busy
-                    ? '영점 확인 중'
-                    : isWeighing
-                    ? '원두량 확인'
-                    : '서버·드리퍼 세팅',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+              Center(
+                child: Image.asset(
+                  'assets/illustrations/pour-over-setup.png',
+                  height: 78,
+                  cacheHeight: 234,
+                  filterQuality: FilterQuality.high,
+                  semanticLabel: '저울 위에 놓인 서버와 드리퍼',
                 ),
               ),
               if (isWeighing)
@@ -104,7 +102,7 @@ class WeighingPanel extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           FittedBox(
             child: Text(
               overloaded ? '용량 초과' : '${grams?.toStringAsFixed(1) ?? '—'} g',
@@ -144,8 +142,14 @@ class WeighingPanel extends StatelessWidget {
           if (suggested == null)
             Text(
               instruction,
+              key: const Key('weighing-instruction'),
               textAlign: TextAlign.center,
-              style: const TextStyle(color: muted, fontSize: 12, height: 1.5),
+              style: const TextStyle(
+                color: ink,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.6,
+              ),
             ),
           if (dose != null && c.validateDose(dose) == null) ...[
             const SizedBox(height: 8),
@@ -182,42 +186,30 @@ class WeighingPanel extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          if (!isWeighing)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                key: const Key('tare'),
-                onPressed: c.canTare ? c.tare : null,
-                icon: const Icon(Icons.exposure_zero_rounded),
-                style: FilledButton.styleFrom(
-                  backgroundColor: mint,
-                  foregroundColor: ink,
-                ),
-                label: const Text('TARE · 영점'),
-              ),
-            ),
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
+          Row(
             children: [
-              if (isWeighing)
-                OutlinedButton.icon(
+              Expanded(
+                child: FilledButton(
                   key: const Key('tare'),
                   onPressed: c.canTare ? c.tare : null,
-                  icon: const Icon(Icons.exposure_zero_rounded),
-                  label: const Text('TARE · 영점'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: mint,
+                    foregroundColor: ink,
+                  ),
+                  child: const Text('TARE'),
                 ),
-              TextButton(
-                key: const Key('manual-dose'),
-                onPressed: busy ? null : () => _editDose(context),
-                child: const Text('직접 입력'),
               ),
-              if (confirmed != null)
-                TextButton(
-                  onPressed: busy ? null : () => c.setDose(null),
-                  child: const Text('저울로 계량'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('manual-dose'),
+                  onPressed: busy ? null : () => _editDose(context),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 50),
+                  ),
+                  child: const Text('직접 입력'),
                 ),
+              ),
             ],
           ),
           if (c.demo) ...[
