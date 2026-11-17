@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'brew_session.dart';
 import 'dose_preparation.dart';
+import 'manual_timer.dart';
 import 'scales/scale.dart';
 import 'scales/scale_registry.dart';
 import 'recipe.dart';
@@ -24,7 +25,8 @@ class BrewController extends ChangeNotifier {
   bool _lastFresh = false;
   final _dosePreparation = DosePreparation();
   double? _confirmedDose;
-  bool _needsNewTare = false;
+  bool _weighingDose = false;
+  double? _doseBaseline;
   bool get canChangeScale =>
       !brew.active &&
       !starting &&
@@ -32,6 +34,7 @@ class BrewController extends ChangeNotifier {
       !changingScale &&
       !(_scale?.busy ?? false);
   final BrewSession brew;
+  final ManualTimer scaleTimer;
   final bool demoAvailable;
   bool _notifiedSinceTick = false;
   late final RecipeStore store;
@@ -51,10 +54,12 @@ class BrewController extends ChangeNotifier {
   BrewController(
     this.preferences, {
     BrewSession? session,
+    ManualTimer? scaleTimer,
     ScaleRegistry? scaleRegistry,
     bool? allowDemo,
   }) : demoAvailable = allowDemo ?? !Platform.isAndroid,
        brew = session ?? BrewSession(),
+       scaleTimer = scaleTimer ?? ManualTimer(),
        scaleRegistry = scaleRegistry ?? ScaleRegistry.standard() {
     store = RecipeStore(preferences);
     final dose = preferences.getDouble('dose') ?? 20;
@@ -79,7 +84,8 @@ class BrewController extends ChangeNotifier {
     _ticker = Timer.periodic(tickInterval, (_) {
       final now = DateTime.now();
       if (!brew.active) {
-        if (demo && setup && !starting && !taring) {
+        if (this.scaleTimer.running) _changed();
+        if (demo && setup && !isDoseWeighing && !starting && !taring) {
           final stable = hasSetupWeight;
           final suggested = suggestedDose;
           _dosePreparation.observe(
@@ -129,6 +135,20 @@ class BrewController extends ChangeNotifier {
     });
   }
   bool get setup => brew.phase == BrewPhase.setup;
+  void toggleScaleTimer() {
+    if (scaleTimer.running) {
+      scaleTimer.pause();
+    } else {
+      scaleTimer.start();
+    }
+    _changed();
+  }
+
+  void resetScaleTimer() {
+    scaleTimer.reset();
+    _changed();
+  }
+
   bool get usable =>
       _scale != null &&
       !changingScale &&
@@ -140,25 +160,22 @@ class BrewController extends ChangeNotifier {
           : (_scale?.fresh == true ? _scale!.reading!.grams : null);
   bool get hasSetupWeight =>
       (demo || _scale?.fresh == true) && _dosePreparation.hasSetupWeight;
-  bool get isDoseTared => _dosePreparation.tared;
+  bool get isDoseWeighing => _weighingDose;
   double? get confirmedDose => _confirmedDose;
   double? get suggestedDose =>
-      _confirmedDose == null && (demo || _scale?.fresh == true)
+      !isDoseWeighing &&
+              _confirmedDose == null &&
+              (demo || _scale?.fresh == true)
           ? _dosePreparation.suggestedDose
           : null;
 
   double? get setupDose {
+    if (!setup || !isDoseWeighing) return null;
     if (_confirmedDose != null) return _confirmedDose;
-    // An inferred addition needs confirmation even after an earlier tare.
-    if (suggestedDose != null) return null;
-    if (_needsNewTare) return null;
     final raw = currentGrams;
-    if (raw == null) return null;
-    if ((!demo && _scale?.info.capabilities.tare == false) || isDoseTared) {
-      return raw;
-    }
-    // Preserve the path where a connected scale was already zeroed externally.
-    return raw < DosePreparation.minimumSetupWeight ? raw : null;
+    final baseline = _doseBaseline;
+    if (raw == null || baseline == null) return null;
+    return ((raw - baseline) * 10).roundToDouble() / 10;
   }
 
   String? validateDose(double dose) => BrewSession.validate(
@@ -170,25 +187,35 @@ class BrewController extends ChangeNotifier {
   void setDose(double? dose) {
     if (!setup || starting || taring) return;
     final error = dose == null ? null : validateDose(dose);
-    if (error == null) _confirmedDose = dose;
+    if (error == null) {
+      _confirmedDose = dose;
+      _weighingDose = dose != null;
+      _doseBaseline = null;
+      _dosePreparation.reset();
+    }
     notice = error;
     _changed();
   }
 
-  Future<void> restartDoseSetup() => _zeroPreparation(forDose: false);
+  void returnToEquipment() {
+    if (!setup || !canChangeScale) return;
+    _weighingDose = false;
+    _doseBaseline = null;
+    _confirmedDose = null;
+    _dosePreparation.reset();
+    notice = null;
+    _changed();
+  }
 
   bool get canEnterDoseWeighing =>
-      setup &&
-      canChangeScale &&
-      usable &&
-      !isDoseTared &&
-      _confirmedDose == null &&
-      currentGrams!.abs() <= DosePreparation.zeroTolerance;
+      setup && canChangeScale && usable && !isDoseWeighing;
 
   void enterDoseWeighing() {
     if (!canEnterDoseWeighing) return;
-    _dosePreparation.markTared();
-    _needsNewTare = false;
+    _doseBaseline = currentGrams!;
+    _weighingDose = true;
+    _confirmedDose = null;
+    _dosePreparation.reset();
     notice = null;
     _changed();
   }
@@ -215,25 +242,15 @@ class BrewController extends ChangeNotifier {
         validateDose(dose) == null;
   }
 
-  Future<void> tare() {
-    final grams = currentGrams;
-    // Capture the state before the hardware clears its current measurement.
-    // Near-zero noise should not undo an established bean-weighing phase.
-    final forDose =
-        grams != null &&
-        grams >= -DosePreparation.zeroTolerance &&
-        (isDoseTared ||
-            _confirmedDose != null ||
-            _dosePreparation.hasStablePositiveWeight);
-    return _zeroPreparation(forDose: forDose);
-  }
-
-  Future<void> _zeroPreparation({required bool forDose}) async {
+  Future<void> tare() async {
     if (!canTare) return;
+    final before = currentGrams;
+    final baseline = _doseBaseline;
     notice = null;
     taring = true;
     _changed();
     try {
+      var zero = 0.0;
       if (demo) {
         demoWeight = 0;
       } else {
@@ -241,17 +258,18 @@ class BrewController extends ChangeNotifier {
         await scale.tare();
         if (_disposed) return;
         if (scale.error != null) throw StateError(scale.error!);
-        await _waitForZero(scale);
+        zero = (await _waitForZero(scale)).grams;
         if (_disposed || !scale.connected) return;
       }
-      if (forDose) {
-        _dosePreparation.markTared();
-        _needsNewTare = false;
-      } else {
-        _dosePreparation.reset();
-        _confirmedDose = null;
-        _needsNewTare = true;
+      // Tare changes only the scale's coordinate origin. Keep the measured
+      // addition and the explicitly selected preparation stage unchanged.
+      if (baseline != null) {
+        _doseBaseline = before == null ? null : baseline + zero - before;
+        if (before == null && _confirmedDose == null) {
+          notice = '원두량을 직접 입력하거나 기구 준비에서 기준 무게를 다시 잡아 주세요.';
+        }
       }
+      _dosePreparation.reset();
     } catch (error) {
       notice = '영점을 확인하지 못했습니다. ($error)';
     } finally {
@@ -297,7 +315,8 @@ class BrewController extends ChangeNotifier {
     final newReading = scale.fresh && _lastSample != scale.lastReading;
     if (!scale.connected || !scale.measurementsReady) {
       _dosePreparation.reset();
-    } else if (setup && !starting && !taring && newReading) {
+      _doseBaseline = null;
+    } else if (setup && !isDoseWeighing && !starting && !taring && newReading) {
       final reading = scale.reading!;
       _dosePreparation.observe(
         reading.overloaded ? double.nan : reading.grams,
@@ -447,7 +466,8 @@ class BrewController extends ChangeNotifier {
     brew.reset();
     _dosePreparation.reset();
     _confirmedDose = null;
-    _needsNewTare = false;
+    _weighingDose = false;
+    _doseBaseline = null;
     demoWeight = 20;
     _demoReading = 0;
     demoLifted = false;
@@ -526,7 +546,9 @@ class BrewController extends ChangeNotifier {
       next = null;
       _scale!.addListener(_onScale);
       _dosePreparation.reset();
-      _needsNewTare = false;
+      _weighingDose = false;
+      _doseBaseline = null;
+      _confirmedDose = null;
       _lastSample = null;
       notice = null;
     } finally {

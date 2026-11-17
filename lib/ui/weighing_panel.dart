@@ -20,7 +20,7 @@ class WeighingPanel extends StatelessWidget {
               key: form,
               child: TextFormField(
                 key: const Key('manual-dose-field'),
-                initialValue: number(c.confirmedDose ?? c.brew.dose),
+                initialValue: number(c.setupDose ?? c.brew.dose),
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -56,11 +56,12 @@ class WeighingPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    final grams = c.currentGrams;
+    final raw = c.currentGrams;
+    final isWeighing = c.isDoseWeighing;
+    final grams = isWeighing ? c.setupDose : raw;
     final confirmed = c.confirmedDose;
     final suggested = c.suggestedDose;
     final busy = c.starting || c.taring;
-    final isWeighing = c.isDoseTared || confirmed != null;
     final connected = c.scale?.connected == true;
     final overloaded = !c.demo && c.scale?.reading?.overloaded == true;
     final instruction =
@@ -70,16 +71,40 @@ class WeighingPanel extends StatelessWidget {
             ? '저울을 연결한 뒤\n서버와 드리퍼를 올려 주세요.'
             : confirmed != null
             ? '원두량을 확인했어요. 추출을 시작해 주세요.'
-            : c.isDoseTared
+            : raw == null
+            ? '저울값을 기다리고 있어요.'
+            : isWeighing && grams == null
+            ? '기구 준비에서 기준 무게를 다시 잡아 주세요.'
+            : isWeighing
             ? '원두를 담아 무게를 확인해 주세요.'
-            : c.hasSetupWeight
-            ? 'TARE를 누른 뒤 원두를 담아 주세요.'
-            : '서버와 드리퍼를 올리고\nTARE를 눌러 주세요.';
+            : '서버와 드리퍼를 올린 뒤\n원두 담기로 넘어가 주세요.';
     return Container(
       key: const Key('weighing-panel'),
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: _step(
+                  isWeighing ? '← 기구 준비' : '1  기구 준비',
+                  !isWeighing,
+                  c.canChangeScale ? c.returnToEquipment : null,
+                  const Key('dose-step-equipment'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _step(
+                  '2  원두 담기',
+                  isWeighing,
+                  c.canEnterDoseWeighing ? c.enterDoseWeighing : null,
+                  const Key('dose-step-beans'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Center(
             child: FittedBox(
               fit: BoxFit.scaleDown,
@@ -134,40 +159,45 @@ class WeighingPanel extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          if (suggested == null)
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    instruction,
-                    key: const Key('weighing-instruction'),
-                    style: const TextStyle(
-                      color: ink,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 1.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  key: const Key('restart-scale-setup'),
-                  onPressed: c.canTare ? c.restartDoseSetup : null,
-                  child: const Text('처음부터', style: TextStyle(fontSize: 12)),
-                ),
-              ],
-            ),
-          if (c.canEnterDoseWeighing)
+          if (isWeighing)
             Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                key: const Key('enter-dose-weighing'),
-                onPressed: c.enterDoseWeighing,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 14),
-                label: const Text('원두 계량으로', style: TextStyle(fontSize: 12)),
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  raw == null
+                      ? '저울 전체 — g'
+                      : '저울 전체 ${raw.toStringAsFixed(1)} g',
+                  key: const Key('setup-total-weight'),
+                  style: const TextStyle(color: muted, fontSize: 11),
+                ),
               ),
             ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  instruction,
+                  key: const Key('weighing-instruction'),
+                  style: const TextStyle(
+                    color: ink,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    height: 1.6,
+                  ),
+                ),
+              ),
+              if (!isWeighing) ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  key: const Key('manual-dose'),
+                  onPressed: busy ? null : () => _editDose(context),
+                  child: const Text('직접 입력', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ],
+          ),
           if (suggested != null) ...[
             const SizedBox(height: 14),
             Container(
@@ -192,15 +222,6 @@ class WeighingPanel extends StatelessWidget {
                         onPressed: busy ? null : () => c.setDose(suggested),
                         child: Text('${number(suggested)}g 적용'),
                       ),
-                      const SizedBox(width: 12),
-                      TextButton(
-                        key: const Key('restart-scale-setup'),
-                        onPressed: c.canTare ? c.restartDoseSetup : null,
-                        child: const Text(
-                          '처음부터',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
                     ],
                   ),
                 ],
@@ -212,26 +233,30 @@ class WeighingPanel extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton(
-                  key: const Key('tare'),
-                  onPressed: c.canTare ? c.tare : null,
+                  key: Key(isWeighing ? 'manual-dose' : 'tare'),
+                  onPressed:
+                      isWeighing
+                          ? (busy ? null : () => _editDose(context))
+                          : (c.canTare ? c.tare : null),
                   style: FilledButton.styleFrom(
                     backgroundColor: mint,
                     foregroundColor: ink,
                   ),
-                  child: const Text('TARE'),
+                  child: Text(isWeighing ? '원두량 직접 입력' : 'TARE'),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  key: const Key('manual-dose'),
-                  onPressed: busy ? null : () => _editDose(context),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 50),
+              if (!isWeighing) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const Key('enter-dose-weighing'),
+                    onPressed:
+                        c.canEnterDoseWeighing ? c.enterDoseWeighing : null,
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                    label: const Text('원두 담기'),
                   ),
-                  child: const Text('직접 입력'),
                 ),
-              ),
+              ],
             ],
           ),
           if (c.demo) ...[
@@ -252,4 +277,29 @@ class WeighingPanel extends StatelessWidget {
       ),
     );
   }
+
+  Widget _step(String label, bool selected, VoidCallback? onPressed, Key key) =>
+      Semantics(
+        selected: selected,
+        child: TextButton(
+          key: key,
+          onPressed: selected ? null : onPressed,
+          style: TextButton.styleFrom(
+            foregroundColor: muted,
+            disabledForegroundColor: selected ? ink : muted,
+            backgroundColor: selected ? mint : Colors.transparent,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ),
+      );
 }

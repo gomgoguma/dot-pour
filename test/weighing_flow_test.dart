@@ -7,330 +7,201 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'support/fake_scale.dart';
 
+Future<({BrewController c, FakeScale scale})> openPour(
+  WidgetTester tester, {
+  double grams = 380,
+  double width = 390,
+  double ratio = 16.7,
+}) async {
+  tester.view.physicalSize = Size(width, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  SharedPreferences.setMockInitialValues({
+    'scale.model': 'test',
+    'ratio': ratio,
+  });
+  final prefs = await SharedPreferences.getInstance();
+  final scale = FakeScale('test', supportsTare: true);
+  final c = BrewController(
+    prefs,
+    allowDemo: false,
+    scaleRegistry: ScaleRegistry([ScaleRegistration(scale.info, () => scale)]),
+  );
+  scale.emit(grams);
+  await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
+  expect(find.byKey(const Key('basic-scale')), findsOneWidget);
+  await tester.tap(find.text('Pour over'));
+  await tester.pump();
+  return (c: c, scale: scale);
+}
+
 void main() {
   testWidgets(
-    'tare vessel, weigh beans, start zeroes and derives dose and target',
+    'explicit steps measure the added beans without taring the equipment',
     (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({
-        'scale.model': 'test',
-        'ratio': 16.7,
-      });
-      final prefs = await SharedPreferences.getInstance();
-      final scale = FakeScale('test', supportsTare: true);
-      final c = BrewController(
-        prefs,
-        scaleRegistry: ScaleRegistry([
-          ScaleRegistration(scale.info, () => scale),
-        ]),
-      );
-      void settleWeight(double grams) {
-        scale.emit(grams);
-        scale.lastReading = scale.lastReading!.add(
-          const Duration(milliseconds: 1500),
-        );
-        scale.emit(grams);
-      }
-
-      settleWeight(380);
-      await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
+      final (:c, :scale) = await openPour(tester);
       expect(find.text('380.0 g'), findsOneWidget);
-      final illustration = find.byKey(const Key('setup-illustration'));
-      expect(
-        tester.widget<Image>(illustration).semanticLabel,
-        '저울 위에 놓인 서버와 드리퍼',
-      );
       expect(c.canStart, false);
-      await tester.tap(find.byKey(const Key('tare')));
+      await tester.tap(find.byKey(const Key('enter-dose-weighing')));
       await tester.pump();
-      expect(find.text('0.0 g'), findsOneWidget);
-      expect(c.canStart, false);
-      expect(find.text('원두를 담아 무게를 확인해 주세요.'), findsOneWidget);
-      expect(tester.widget<Image>(illustration).semanticLabel, '커피 원두');
-      scale.emit(18);
-      c.setDose(18);
-      await tester.pump();
-      await tester.tap(find.text('처음부터'));
-      await tester.pump();
-      expect(scale.tares, 2, reason: 'Restart must actually zero the scale');
-      expect(c.currentGrams, 0);
-      expect(c.confirmedDose, isNull);
-      expect(find.text('서버와 드리퍼를 올리고\nTARE를 눌러 주세요.'), findsOneWidget);
-      expect(
-        tester.widget<Image>(illustration).semanticLabel,
-        '저울 위에 놓인 서버와 드리퍼',
-      );
-      scale.emit(-398);
-      await tester.pump(const Duration(seconds: 1));
-      expect(scale.tares, 2, reason: 'Lifting equipment must not auto-tare');
-      await tester.tap(find.byKey(const Key('tare')));
-      await tester.pump();
-      expect(c.currentGrams, 0);
-      expect(c.isDoseTared, false);
-      expect(c.canStart, false);
-      expect(
-        tester.widget<Image>(illustration).semanticLabel,
-        '저울 위에 놓인 서버와 드리퍼',
-      );
-      expect(find.byKey(const Key('enter-dose-weighing')), findsOneWidget);
-      settleWeight(380);
-      await tester.tap(find.byKey(const Key('tare')));
-      await tester.pump();
-      expect(find.text('원두를 담아 무게를 확인해 주세요.'), findsOneWidget);
-      scale.emit(18.5);
+      expect(scale.tares, 0);
+      expect(c.isDoseWeighing, true);
+      expect(c.setupDose, 0);
+      expect(find.text('저울 전체 380.0 g'), findsOneWidget);
+      final image = find.byKey(const Key('setup-illustration'));
+      expect(tester.widget<Image>(image).semanticLabel, '커피 원두');
+      scale.emit(398.5);
       await tester.pump();
       expect(find.text('18.5 g'), findsOneWidget);
+      expect(find.text('저울 전체 398.5 g'), findsOneWidget);
+      expect(c.setupDose, 18.5);
+      expect(c.canStart, true);
+      expect(find.byKey(const Key('tare')), findsNothing);
+      expect(find.byKey(const Key('manual-dose')), findsOneWidget);
+      expect(find.text('직접 입력'), findsNothing);
+      await tester.tap(find.byKey(const Key('manual-dose')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const Key('manual-dose-field')))
+            .initialValue,
+        '18.5',
+      );
+      await tester.enterText(find.byKey(const Key('manual-dose-field')), '20');
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+      expect(c.setupDose, 18.5);
+      expect(scale.tares, 0);
       await tester.tap(find.text('추출 시작'));
       await tester.pump();
-      expect(scale.tares, 5);
+      expect(scale.tares, 1);
       expect(c.brew.dose, 18.5);
       expect(c.brew.target, closeTo(308.95, .001));
-      expect(c.brew.water, 0);
       expect(c.brew.phase, BrewPhase.ready);
-      expect(find.byKey(const Key('weighing-panel')), findsNothing);
+      expect(c.brew.water, 0);
       for (var grams = 4.0; grams <= 40; grams += 4) {
         scale.emit(grams);
       }
-      scale.emit(40); // One following notification validates the final weight.
+      scale.emit(40);
       await tester.pump();
       expect(c.brew.water, 40);
       await c.tare();
-      await c.restartDoseSetup();
+      c.returnToEquipment();
       expect(
         scale.tares,
-        5,
-        reason: 'Tare and restart cannot erase an active pour',
+        1,
+        reason: 'Active brewing cannot be tared or moved to preparation',
       );
+      expect(c.brew.active, true);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
   );
 
-  testWidgets('a stable addition needs confirmation before the brew starts', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    SharedPreferences.setMockInitialValues({'scale.model': 'test'});
-    final prefs = await SharedPreferences.getInstance();
-    final scale = FakeScale('test', supportsTare: true);
-    final c = BrewController(
-      prefs,
-      scaleRegistry: ScaleRegistry([
-        ScaleRegistration(scale.info, () => scale),
-      ]),
-    );
-    await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
-    expect(find.text('0.0 g'), findsOneWidget);
-    expect(c.canStart, false);
-    final from = DateTime.now().subtract(const Duration(milliseconds: 1750));
-    void send(double grams, int offset) {
-      scale.lastReading = from.add(Duration(milliseconds: offset));
-      scale.emit(grams);
-    }
-
-    send(300, 0);
-    send(300, 1500);
-    expect(c.hasSetupWeight, true);
-    await tester.pump();
-    expect(find.text('세팅 안정'), findsNothing);
-    expect(tester.widget(find.byKey(const Key('tare'))), isA<FilledButton>());
-    send(318.4, 1600);
-    send(318.4, 2400);
-    await tester.pump();
-    expect(find.text('원두를 담으셨나요? 18.4g 늘었어요.'), findsOneWidget);
-    expect(c.canStart, false);
-    await tester.tap(find.byKey(const Key('apply-suggested-dose')));
-    await tester.pump();
-    expect(
-      tester
-          .widget<Image>(find.byKey(const Key('setup-illustration')))
-          .semanticLabel,
-      '커피 원두',
-    );
-    expect(c.canStart, true);
-    expect(find.text('원두 18.4g · 1:16 · 물 294.4g'), findsOneWidget);
-    await tester.tap(find.text('추출 시작'));
-    await tester.pump();
-    expect(c.brew.dose, 18.4);
-    expect(c.brew.water, 0);
-    expect(scale.tares, 1);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
-
-  testWidgets('dose suggestions return after restarting setup and after tare', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    SharedPreferences.setMockInitialValues({'scale.model': 'test'});
-    final prefs = await SharedPreferences.getInstance();
-    final scale = FakeScale('test', supportsTare: true);
-    final c = BrewController(
-      prefs,
-      scaleRegistry: ScaleRegistry([
-        ScaleRegistration(scale.info, () => scale),
-      ]),
-    );
-    scale.emit(18);
-    c.setDose(18);
-    await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
-    var at = DateTime.now();
-    void send(double grams, int elapsed) {
-      at = at.add(Duration(milliseconds: elapsed));
-      scale.lastReading = at;
-      scale.emit(grams);
-    }
-
-    for (final tareAgain in [false, true]) {
-      await tester.tap(find.byKey(const Key('restart-scale-setup')));
-      await tester.pump();
-      send(18, 100);
-      expect(c.canStart, false, reason: 'Restart must not reuse an old dose');
-      if (tareAgain) {
-        await tester.tap(find.byKey(const Key('tare')));
-        await tester.pump();
-        await tester.tap(find.byKey(const Key('enter-dose-weighing')));
-        await tester.pump();
-        expect(c.isDoseTared, true);
-      }
-      send(70, 100);
-      send(70, 1500);
-      send(88, 100);
-      send(88, 800);
-      await tester.pump();
-      expect(find.text('세팅 안정'), findsNothing);
-      expect(find.text('원두를 담으셨나요? 18g 늘었어요.'), findsOneWidget);
-      expect(c.canStart, false, reason: 'An inferred dose needs confirmation');
-      await tester.tap(find.byKey(const Key('apply-suggested-dose')));
-      await tester.pump();
-      expect(c.setupDose, 18);
-      expect(c.canStart, true);
-      send(90, 100);
-      send(90, 800);
-      await tester.pump();
-      expect(c.setupDose, 18, reason: 'Keep the dose the user confirmed');
-      expect(find.byKey(const Key('apply-suggested-dose')), findsNothing);
-    }
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
-
   testWidgets(
-    'zeroed equipment can enter weighing explicitly; zero noise does not reset it',
+    'tare only zeroes the scale and preserves both the stage and bean difference',
     (tester) async {
-      tester.view.physicalSize = const Size(320, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
-      final prefs = await SharedPreferences.getInstance();
-      final scale = FakeScale('test', supportsTare: true);
-      final c = BrewController(
-        prefs,
-        allowDemo: false,
-        scaleRegistry: ScaleRegistry([
-          ScaleRegistration(scale.info, () => scale),
-        ]),
-      );
-      scale.emit(300);
-      await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
-      await tester.tap(find.text('처음부터'));
+      final (:c, :scale) = await openPour(tester, width: 320, ratio: 15);
+      await tester.tap(find.byKey(const Key('tare')));
       await tester.pump();
       expect(c.currentGrams, 0);
-      expect(c.isDoseTared, false);
+      expect(c.isDoseWeighing, false);
       expect(c.canStart, false);
-      expect(find.text('원두량을 확인해 주세요'), findsOneWidget);
-
-      scale.emit(-.2);
-      await tester.tap(find.byKey(const Key('tare')));
+      scale.emit(-380);
+      await c.tare();
+      await tester.pump();
+      expect(c.isDoseWeighing, false);
+      scale.emit(300);
+      await tester.tap(find.byKey(const Key('dose-step-beans')));
+      await tester.pump();
+      scale.emit(318);
+      await tester.pump();
+      expect(c.setupDose, 18);
+      await tester.tap(find.byKey(const Key('home-mode-scale')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('basic-scale-tare')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('home-mode-pourOver')));
+      await tester.pump();
+      expect(c.isDoseWeighing, true);
+      expect(c.currentGrams, 0);
+      expect(c.setupDose, 18);
+      expect(find.text('18.0 g'), findsOneWidget);
+      expect(find.text('저울 전체 0.0 g'), findsOneWidget);
+      scale.emit(2);
+      await tester.pump();
+      expect(c.setupDose, 20);
+      expect(find.text('원두 20g · 1:15 · 물 300g'), findsOneWidget);
+      final tares = scale.tares;
+      await tester.tap(find.byKey(const Key('dose-step-equipment')));
+      await tester.pump();
+      expect(c.isDoseWeighing, false);
+      expect(c.setupDose, isNull);
+      expect(c.currentGrams, 2);
+      expect(scale.tares, tares, reason: 'Step navigation never sends tare');
+      await tester.tap(find.byKey(const Key('enter-dose-weighing')));
+      await tester.pump();
+      scale.emit(20);
       await tester.pump();
       expect(
-        c.isDoseTared,
-        false,
-        reason: 'Repeated zeroing must not assume equipment is present',
+        c.setupDose,
+        18,
+        reason: 'The new step takes the current value as its baseline',
       );
-      await tester.tap(find.text('원두 계량으로'));
-      await tester.pump();
-      expect(c.isDoseTared, true);
-      expect(
-        scale.tares,
-        2,
-        reason: 'Explicit phase selection does not tare again',
-      );
-      expect(c.canStart, false);
-      scale.emit(-.2);
-      await tester.tap(find.byKey(const Key('tare')));
-      await tester.pump();
-      expect(
-        c.isDoseTared,
-        true,
-        reason: 'Small zero noise is not equipment removal',
-      );
-      scale.emit(18);
-      await tester.pump();
-      expect(c.canStart, true);
-      final conditions = find.descendant(
-        of: find.byKey(const Key('start-brew')),
-        matching: find.text('원두 18g · 1:16 · 물 288g'),
-      );
-      expect(conditions, findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
   );
 
-  test(
-    'failed restart preserves the current dose and does not claim a new zero',
-    () async {
-      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
-      final scale = FakeScale('test', supportsTare: true)..tareFails = true;
-      final c = BrewController(
-        await SharedPreferences.getInstance(),
-        scaleRegistry: ScaleRegistry([
-          ScaleRegistration(scale.info, () => scale),
-        ]),
-      );
-      addTearDown(c.dispose);
-      scale.emit(318);
-      c.setDose(18);
-      await c.restartDoseSetup();
-      expect(scale.tares, 1);
-      expect(c.currentGrams, 318);
-      expect(c.confirmedDose, 18);
-      expect(c.canEnterDoseWeighing, false);
-      expect(c.taring, false);
-      expect(c.notice, contains('영점을 확인하지 못했습니다'));
+  testWidgets(
+    'automatic additions remain suggestions until explicitly accepted, including repeated setups',
+    (tester) async {
+      final (:c, :scale) = await openPour(tester, grams: 300, ratio: 16);
+      var at = DateTime.now();
+      void send(double grams, int elapsed) {
+        at = at.add(Duration(milliseconds: elapsed));
+        scale.lastReading = at;
+        scale.emit(grams);
+      }
+
+      for (var cycle = 0; cycle < 2; cycle++) {
+        send(300, 100);
+        send(300, 1500);
+        send(318.4, 100);
+        send(318.4, 800);
+        await tester.pump();
+        expect(find.text('원두를 담으셨나요? 18.4g 늘었어요.'), findsOneWidget);
+        expect(c.isDoseWeighing, false);
+        expect(c.canStart, false);
+        await tester.tap(find.byKey(const Key('apply-suggested-dose')));
+        await tester.pump();
+        expect(c.isDoseWeighing, true);
+        expect(c.setupDose, 18.4);
+        expect(find.text('원두 18.4g · 1:16 · 물 294.4g'), findsOneWidget);
+        send(320, 100);
+        await tester.pump();
+        expect(
+          c.setupDose,
+          18.4,
+          reason: 'Explicit dose is not overwritten by later readings',
+        );
+        await tester.tap(find.byKey(const Key('dose-step-equipment')));
+        await tester.pump();
+      }
+      expect(scale.tares, 0);
+      await tester.pumpWidget(const SizedBox());
     },
   );
 
   testWidgets(
-    'manual dose uses the tare baseline and shows live scale weight',
+    'manual dose is separate from total weight and starts with the confirmed amount',
     (tester) async {
-      tester.view.physicalSize = const Size(320, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
-      final prefs = await SharedPreferences.getInstance();
-      final scale = FakeScale('test', supportsTare: true);
-      final c = BrewController(
-        prefs,
-        scaleRegistry: ScaleRegistry([
-          ScaleRegistration(scale.info, () => scale),
-        ]),
+      final (:c, :scale) = await openPour(
+        tester,
+        grams: 418,
+        width: 320,
+        ratio: 16,
       );
-      scale.emit(418);
-      await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
-      expect(c.canStart, false);
       await tester.tap(find.byKey(const Key('manual-dose')));
       await tester.pumpAndSettle();
       final input = find.byKey(const Key('manual-dose-field'));
@@ -341,46 +212,63 @@ void main() {
       await tester.enterText(input, '18');
       await tester.tap(find.text('원두량 적용'));
       await tester.pumpAndSettle();
+      expect(c.isDoseWeighing, true);
+      expect(find.text('18.0 g'), findsOneWidget);
+      expect(find.text('저울 전체 418.0 g'), findsOneWidget);
       expect(find.text('원두 18g · 1:16 · 물 288g'), findsOneWidget);
-      expect(
-        tester
-            .widget<Image>(find.byKey(const Key('setup-illustration')))
-            .semanticLabel,
-        '커피 원두',
-      );
       await tester.tap(find.text('추출 시작'));
       await tester.pump();
       expect(c.brew.dose, 18);
       expect(c.brew.target, 288);
-      expect(c.brew.water, 0);
-      final liveWeight = find.byKey(const Key('brew-live-weight'));
-      expect(tester.widget<Text>(liveWeight).data, '저울 0.0 g');
       scale.emit(-300);
       await tester.pump();
-      expect(tester.widget<Text>(liveWeight).data, '저울 -300.0 g');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('brew-live-weight'))).data,
+        '저울 -300.0 g',
+      );
       expect(c.brew.water, 0);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
   );
 
-  test(
-    'failed automatic tare preserves setup and does not start recording',
-    () async {
-      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
-      final scale = FakeScale('test', supportsTare: true)..tareFails = true;
-      final c = BrewController(
-        await SharedPreferences.getInstance(),
-        scaleRegistry: ScaleRegistry([
-          ScaleRegistration(scale.info, () => scale),
-        ]),
-      );
-      addTearDown(c.dispose);
-      scale.emit(20);
+  testWidgets(
+    'failed tare keeps the preparation baseline and never changes stage',
+    (tester) async {
+      final (:c, :scale) = await openPour(tester, grams: 300);
+      c.enterDoseWeighing();
+      scale.emit(318);
+      scale.tareFails = true;
+      await c.tare();
+      expect(c.currentGrams, 318);
+      expect(c.setupDose, 18);
+      expect(c.isDoseWeighing, true);
+      expect(c.taring, false);
+      expect(c.notice, contains('영점을 확인하지 못했습니다'));
       await c.start();
       expect(c.brew.phase, BrewPhase.setup);
-      expect(c.starting, false);
       expect(c.notice, contains('시작하지 않았습니다'));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
+    'reconnection does not reuse a possibly changed equipment baseline',
+    (tester) async {
+      final (:c, :scale) = await openPour(tester, grams: 300);
+      c.enterDoseWeighing();
+      scale.emit(318);
+      expect(c.setupDose, 18);
+      await scale.disconnect();
+      scale.emit(18);
+      expect(c.setupDose, isNull);
+      expect(c.canStart, false);
+      c.returnToEquipment();
+      c.enterDoseWeighing();
+      scale.emit(36);
+      expect(c.setupDose, 18);
+      expect(c.canStart, true);
+      await tester.pumpWidget(const SizedBox());
     },
   );
 }

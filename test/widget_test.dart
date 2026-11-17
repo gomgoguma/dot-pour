@@ -30,6 +30,8 @@ void main() {
     await tester.pumpWidget(
       DotPourApp(preferences: preferences, controller: controller),
     );
+    await tester.tap(find.text('Pour over'));
+    await tester.pump();
     final demo = find.text('저울 없이 데모로 체험');
     await tester.scrollUntilVisible(
       demo,
@@ -37,6 +39,8 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(demo);
+    await tester.pump();
+    controller.setDose(20);
     await tester.pump();
     final start = find.text('추출 시작');
     await tester.ensureVisible(start);
@@ -113,6 +117,10 @@ void main() {
       await tester.pumpWidget(
         DotPourApp(preferences: prefs, controller: controller),
       );
+      await tester.tap(find.text('Pour over'));
+      await tester.pump();
+      controller.setDose(20);
+      await tester.pump();
       expect(find.text('저울 없이 데모로 체험'), findsNothing);
       final input = find.byKey(const Key('ratio-input'));
       final start = find.ancestor(

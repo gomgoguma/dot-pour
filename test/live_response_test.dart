@@ -32,6 +32,9 @@ void main() {
       await tester.pumpWidget(
         DotPourApp(preferences: prefs, controller: controller),
       );
+      expect(find.byKey(const Key('basic-scale')), findsOneWidget);
+      await tester.tap(find.text('Pour over'));
+      await tester.pump();
       expect(find.byKey(const Key('weighing-panel')), findsOneWidget);
       controller.setDose(18);
       await tester.tap(find.text('Espresso'));
@@ -97,6 +100,9 @@ void main() {
     );
     scale.emit(20);
     await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
+    await tester.tap(find.text('Pour over'));
+    await tester.pump();
+    c.setDose(20);
     await c.start();
     await tester.pump();
     for (var g = 1.0; g <= 20; g++) {

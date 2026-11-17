@@ -26,9 +26,12 @@ void main() {
       var now = Duration.zero;
       final brew = BrewSession(now: () => now);
       final controller = BrewController(prefs, session: brew)..demo = true;
+      controller.setDose(20);
       await tester.pumpWidget(
         DotPourApp(preferences: prefs, controller: controller),
       );
+      await tester.tap(find.text('Pour over'));
+      await tester.pump();
       await tester.tap(find.text('추출 시작'));
       brew.update(1);
       brew.update(2);
@@ -145,9 +148,12 @@ void main() {
       SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
       final prefs = await SharedPreferences.getInstance();
       final controller = BrewController(prefs)..demo = true;
+      controller.setDose(20);
       await tester.pumpWidget(
         DotPourApp(preferences: prefs, controller: controller),
       );
+      await tester.tap(find.text('Pour over'));
+      await tester.pump();
       final input = find.byKey(const Key('ratio-input'));
       expect(tester.widget<TextField>(input).controller!.text, '16');
       expect(find.byType(NavigationBar), findsOneWidget);

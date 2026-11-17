@@ -15,6 +15,9 @@ import 'ui/scale_selection.dart';
 import 'ui/scale_status.dart';
 import 'ui/style.dart';
 import 'ui/weighing_panel.dart';
+import 'ui/basic_scale.dart';
+
+enum _HomeMode { scale, pourOver, espresso }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -142,12 +145,12 @@ class _BrewScreenState extends State<BrewScreen> {
   }
 
   int _page = 0;
-  bool _espresso = false;
+  late _HomeMode _mode = c.setup ? _HomeMode.scale : _HomeMode.pourOver;
 
   void _openBrewing() {
     setState(() {
       _page = 0;
-      _espresso = false;
+      _mode = _HomeMode.pourOver;
       _ratioInputValid = true;
     });
   }
@@ -259,9 +262,20 @@ class _BrewScreenState extends State<BrewScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Row(
                             children: [
-                              Flexible(child: _modeTab('Pour over', false)),
-                              const SizedBox(width: 26),
-                              Flexible(child: _modeTab('Espresso', true)),
+                              Expanded(
+                                child: _modeTab('Scale', _HomeMode.scale),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _modeTab(
+                                  'Pour over',
+                                  _HomeMode.pourOver,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _modeTab('Espresso', _HomeMode.espresso),
+                              ),
                             ],
                           ),
                         ),
@@ -273,12 +287,16 @@ class _BrewScreenState extends State<BrewScreen> {
         body: switch (_page) {
           1 => RecipeLibrary(controller: c, onRecipeLoaded: _openBrewing),
           2 => _settings(),
-          _ => _espresso ? _espressoPlaceholder() : _brewing(),
+          _ => switch (_mode) {
+            _HomeMode.scale => BasicScale(controller: c),
+            _HomeMode.pourOver => _brewing(),
+            _HomeMode.espresso => _espressoPlaceholder(),
+          },
         },
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_page == 0 && !_espresso)
+            if (_page == 0 && _mode == _HomeMode.pourOver)
               Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 608),
@@ -322,18 +340,19 @@ class _BrewScreenState extends State<BrewScreen> {
     },
   );
 
-  Widget _modeTab(String label, bool espresso) {
-    final selected = _espresso == espresso;
+  Widget _modeTab(String label, _HomeMode mode) {
+    final selected = _mode == mode;
     return Semantics(
       selected: selected,
       child: TextButton(
+        key: ValueKey('home-mode-${mode.name}'),
         onPressed:
             c.brew.active || c.starting || c.taring
                 ? null
                 : () {
                   FocusScope.of(context).unfocus();
                   setState(() {
-                    _espresso = espresso;
+                    _mode = mode;
                     _ratioInputValid = true;
                   });
                 },

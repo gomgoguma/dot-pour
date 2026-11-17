@@ -24,7 +24,9 @@ void main() {
       expect(prefs.getString(BrewController.selectedScaleKey), isNull);
       await tester.tap(find.text('이 저울로 시작'));
       await tester.pumpAndSettle();
-      expect(find.text('추출 시작'), findsOneWidget);
+      expect(find.byKey(const Key('basic-scale')), findsOneWidget);
+      await tester.tap(find.text('Pour over'));
+      await tester.pump();
       expect(prefs.getString(BrewController.selectedScaleKey), 'timemore-dot');
       expect(
         tester
@@ -90,6 +92,7 @@ void main() {
       );
       addTearDown(c.dispose);
       a.emit(20);
+      c.setDose(20);
       await c.start();
       now = const Duration(milliseconds: 100);
       a.emit(21);
@@ -118,6 +121,7 @@ void main() {
       expect(prefs.getString(BrewController.selectedScaleKey), 'test-b');
       c.reset();
       b.emit(50);
+      c.setDose(50);
       c.start();
       b.emit(55);
       b.emit(60);
@@ -149,6 +153,7 @@ void main() {
       await c.configure(100, 20);
       expect(c.brew.target, 2000);
       large.emit(100);
+      c.setDose(100);
       await c.start();
       expect(c.brew.phase, BrewPhase.ready);
       c.finish();

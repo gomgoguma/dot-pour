@@ -2,7 +2,6 @@
 /// because the scale cannot identify what was added.
 class DosePreparation {
   static const minimumSetupWeight = 60.0;
-  static const zeroTolerance = 0.5;
   static const _minimumDose = 10.0;
   static const _maximumDose = 40.0;
   static const _stabilityTolerance = 0.5;
@@ -14,16 +13,11 @@ class DosePreparation {
   DateTime? _stableFrom;
   double? _setupWeight;
   double? _suggestedDose;
-  bool _tared = false;
-  bool _stablePositiveWeight = false;
 
   bool get hasSetupWeight => _setupWeight != null;
-  bool get tared => _tared;
-  bool get hasStablePositiveWeight => _stablePositiveWeight;
   double? get suggestedDose => _suggestedDose;
 
   void reset() {
-    _tared = false;
     _resetDetection();
   }
 
@@ -31,11 +25,6 @@ class DosePreparation {
     _lastAt = null;
     _setupWeight = null;
     _clearStability();
-  }
-
-  void markTared() {
-    reset();
-    _tared = true;
   }
 
   void observe(double grams, DateTime at, {required Duration maxGap}) {
@@ -65,12 +54,10 @@ class DosePreparation {
       _anchor = grams;
       _stableFrom = at;
       _suggestedDose = null;
-      _stablePositiveWeight = false;
       return;
     }
 
     final steadyFor = at.difference(_stableFrom!);
-    _stablePositiveWeight = grams > zeroTolerance && steadyFor >= _setupTime;
     if (grams < minimumSetupWeight) {
       _suggestedDose = null;
       return;
@@ -92,6 +79,5 @@ class DosePreparation {
     _anchor = null;
     _stableFrom = null;
     _suggestedDose = null;
-    _stablePositiveWeight = false;
   }
 }
