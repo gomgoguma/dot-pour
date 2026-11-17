@@ -1,9 +1,7 @@
 /// Observes stable setups throughout preparation. A steady increase is a suggestion
 /// because the scale cannot identify what was added.
 class DosePreparation {
-  static const minimumSetupWeight = 60.0;
-  static const _minimumDose = 10.0;
-  static const _maximumDose = 40.0;
+  static const maximumBeanAddition = 40.0;
   static const _stabilityTolerance = 0.5;
   static const _setupTime = Duration(milliseconds: 1500);
   static const _doseTime = Duration(milliseconds: 800);
@@ -13,12 +11,29 @@ class DosePreparation {
   DateTime? _stableFrom;
   double? _setupWeight;
   double? _suggestedDose;
+  bool _allowOffset = false;
 
   bool get hasSetupWeight => _setupWeight != null;
+  double? get setupWeight => _setupWeight;
+  bool get readyForDose =>
+      _setupWeight != null &&
+      _anchor != null &&
+      (_anchor! - _setupWeight!).abs() <= _stabilityTolerance &&
+      _lastAt!.difference(_stableFrom!) >= _setupTime;
   double? get suggestedDose => _suggestedDose;
 
   void reset() {
+    _allowOffset = false;
     _resetDetection();
+  }
+
+  void beginDoseWeighing(double baseline, DateTime at) {
+    reset();
+    _allowOffset = true;
+    _setupWeight = baseline;
+    _anchor = baseline;
+    _stableFrom = at;
+    _lastAt = at;
   }
 
   void _resetDetection() {
@@ -42,9 +57,9 @@ class DosePreparation {
 
     final setupWeight = _setupWeight;
     if (setupWeight != null &&
-        (grams < minimumSetupWeight ||
+        ((!_allowOffset && grams <= maximumBeanAddition) ||
             grams < setupWeight - _stabilityTolerance ||
-            grams > setupWeight + _maximumDose + _stabilityTolerance)) {
+            grams > setupWeight + maximumBeanAddition)) {
       _setupWeight = null;
       _clearStability();
     }
@@ -58,7 +73,7 @@ class DosePreparation {
     }
 
     final steadyFor = at.difference(_stableFrom!);
-    if (grams < minimumSetupWeight) {
+    if (!_allowOffset && grams <= maximumBeanAddition) {
       _suggestedDose = null;
       return;
     }
@@ -70,7 +85,9 @@ class DosePreparation {
 
     final delta = ((grams - baseline) * 10).round() / 10;
     _suggestedDose =
-        steadyFor >= _doseTime && delta >= _minimumDose && delta <= _maximumDose
+        steadyFor >= _doseTime &&
+                delta > _stabilityTolerance &&
+                delta <= maximumBeanAddition
             ? delta
             : null;
   }

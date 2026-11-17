@@ -12,15 +12,15 @@ void main() {
       maxGap: const Duration(seconds: 2),
     );
 
-    send(59.7, 0);
-    send(59.7, 1600);
+    send(40, 0);
+    send(40, 1600);
     expect(preparation.hasSetupWeight, false);
     send(240, 1700);
     send(240.1, 3200);
     expect(preparation.hasSetupWeight, true);
     send(247, 3300);
     send(247, 4200);
-    expect(preparation.suggestedDose, isNull);
+    expect(preparation.suggestedDose, 6.9);
     send(258.5, 4300);
     send(258.5, 5000);
     expect(preparation.suggestedDose, isNull);
@@ -112,4 +112,68 @@ void main() {
       expect(preparation.suggestedDose, isNull);
     },
   );
+  test('server then 60g dripper refreshes the stable equipment baseline', () {
+    final preparation = DosePreparation();
+    void send(double grams, int ms) => preparation.observe(
+      grams,
+      epoch.add(Duration(milliseconds: ms)),
+      maxGap: const Duration(seconds: 2),
+    );
+    send(300, 0);
+    send(300, 1500);
+    expect(preparation.readyForDose, true);
+    send(360, 1600);
+    expect(preparation.readyForDose, false);
+    expect(preparation.suggestedDose, isNull);
+    send(360, 3100);
+    expect(preparation.setupWeight, 360);
+    expect(preparation.readyForDose, true);
+    send(378, 3200);
+    send(378, 4000);
+    expect(preparation.suggestedDose, 18);
+    expect(preparation.readyForDose, false);
+  });
+
+  test('near simultaneous equipment is one setup once it settles', () {
+    final preparation = DosePreparation();
+    void send(double grams, int ms) => preparation.observe(
+      grams,
+      epoch.add(Duration(milliseconds: ms)),
+      maxGap: const Duration(seconds: 2),
+    );
+    send(0, 0);
+    send(300, 100);
+    send(360, 500);
+    send(360, 1900);
+    expect(preparation.hasSetupWeight, false);
+    send(360, 2000);
+    expect(preparation.setupWeight, 360);
+    expect(preparation.readyForDose, true);
+    expect(preparation.suggestedDose, isNull);
+  });
+
+  test('40g is beans, 40.1g is equipment, and tiny jitter is ignored', () {
+    final preparation = DosePreparation();
+    void send(double grams, int ms) => preparation.observe(
+      grams,
+      epoch.add(Duration(milliseconds: ms)),
+      maxGap: const Duration(seconds: 2),
+    );
+    send(300.1, 0);
+    send(300.1, 1500);
+    send(300.5, 1600);
+    send(300.5, 2400);
+    expect(preparation.suggestedDose, isNull);
+    send(300.7, 2500);
+    send(300.7, 3300);
+    expect(preparation.suggestedDose, .6);
+    send(340.1, 3400);
+    send(340.1, 4200);
+    expect(preparation.suggestedDose, 40);
+    send(340.2, 4300);
+    expect(preparation.suggestedDose, isNull);
+    send(340.2, 5800);
+    expect(preparation.setupWeight, 340.2);
+    expect(preparation.readyForDose, true);
+  });
 }

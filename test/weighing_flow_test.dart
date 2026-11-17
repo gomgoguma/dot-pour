@@ -43,7 +43,16 @@ void main() {
     'explicit steps measure the added beans without taring the equipment',
     (tester) async {
       final (:c, :scale) = await openPour(tester, width: 320, height: 740);
-      expect(find.text('380.0 g'), findsOneWidget);
+      expect(find.text('380.0 g'), findsNothing);
+      expect(find.byKey(const Key('live-weight')), findsNothing);
+      expect(find.text('추출 시작'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('start-brew')))
+            .onPressed,
+        isNull,
+      );
+      expect(find.text('원두 계량 시작'), findsOneWidget);
       expect(find.byKey(const Key('tare')), findsNothing);
       expect(find.byKey(const Key('enter-dose-weighing')), findsNothing);
       expect(c.canStart, false);
@@ -154,6 +163,8 @@ void main() {
       expect(c.isDoseWeighing, false);
       expect(c.setupDose, isNull);
       expect(c.currentGrams, 2);
+      expect(c.preparingAgain, true);
+      expect(find.text('원두를 빼고 기구만 올려 주세요.'), findsOneWidget);
       expect(scale.tares, tares, reason: 'Step navigation never sends tare');
       await tester.tap(find.byKey(const Key('dose-step-beans')));
       await tester.pump();
@@ -164,6 +175,7 @@ void main() {
         18,
         reason: 'The new step takes the current value as its baseline',
       );
+      expect(c.preparingAgain, false);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
@@ -186,7 +198,7 @@ void main() {
         send(318.4, 100);
         send(318.4, 800);
         await tester.pump();
-        expect(find.text('원두를 담으셨나요? 18.4g 늘었어요.'), findsOneWidget);
+        expect(find.text('감지된 18.4g 사용'), findsOneWidget);
         expect(c.isDoseWeighing, false);
         expect(c.canStart, false);
         await tester.tap(find.byKey(const Key('apply-suggested-dose')));
@@ -284,6 +296,73 @@ void main() {
       scale.emit(36);
       expect(c.setupDose, 18);
       expect(c.canStart, true);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'ready hint is advisory and dripper additions rebase even after advancing',
+    (tester) async {
+      final (:c, :scale) = await openPour(
+        tester,
+        grams: 300,
+        width: 320,
+        height: 740,
+        ratio: 15,
+      );
+      void send(double grams, int elapsed) {
+        scale.lastReading = (scale.lastReading ?? DateTime.now()).add(
+          Duration(milliseconds: elapsed),
+        );
+        scale.emit(grams);
+      }
+
+      send(300, 100);
+      send(300, 1500);
+      await tester.pump();
+      expect(find.byKey(const Key('equipment-ready-hint')), findsOneWidget);
+      expect(c.isDoseWeighing, false);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('start-brew')))
+            .onPressed,
+        isNull,
+      );
+      send(0, 100);
+      await tester.pump();
+      expect(find.byKey(const Key('equipment-ready-hint')), findsNothing);
+
+      // An existing offset or a tared origin does not change the added-mass rule.
+      for (final origin in [300.0, 0.0, -100.0]) {
+        c.returnToEquipment();
+        send(origin, 100);
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('dose-step-beans')));
+        await tester.pump();
+        send(origin + 60, 100);
+        await tester.pump();
+        expect(c.addingEquipment, true);
+        expect(c.setupDose, isNull);
+        expect(c.canStart, false);
+        expect(find.text('기구 무게 확인 중'), findsOneWidget);
+        send(origin + 60, 1500);
+        await tester.pump();
+        expect(c.addingEquipment, false);
+        expect(c.setupDose, 0);
+        expect(find.text('원두를 담아 주세요'), findsOneWidget);
+        send(origin + 78, 100);
+        await tester.pump();
+        expect(c.setupDose, 18);
+        expect(c.canStart, true);
+      }
+      c.setDose(60);
+      send(200, 1500);
+      expect(
+        c.setupDose,
+        60,
+        reason: 'An explicitly entered amount is never automatically rebased',
+      );
+      expect(scale.tares, 0);
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
   );

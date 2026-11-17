@@ -27,6 +27,7 @@ class BrewController extends ChangeNotifier {
   final _dosePreparation = DosePreparation();
   double? _confirmedDose;
   bool _weighingDose = false;
+  bool _preparingAgain = false;
   double? _doseBaseline;
   bool get canChangeScale =>
       !brew.active &&
@@ -98,15 +99,20 @@ class BrewController extends ChangeNotifier {
         final flow = scaleFlow;
         if (this.scaleTimer.running || flow != _lastScaleFlow) _changed();
         _lastScaleFlow = flow;
-        if (demo && setup && !isDoseWeighing && !starting && !taring) {
+        if (demo && setup && _confirmedDose == null && !starting && !taring) {
           final stable = hasSetupWeight;
+          final ready = equipmentReady;
+          final baseline = _doseBaseline;
           final suggested = suggestedDose;
-          _dosePreparation.observe(
+          _observeDosePreparation(
             demoWeight,
             now,
             maxGap: const Duration(seconds: 2),
           );
-          if (stable != hasSetupWeight || suggested != suggestedDose) {
+          if (stable != hasSetupWeight ||
+              ready != equipmentReady ||
+              baseline != _doseBaseline ||
+              suggested != suggestedDose) {
             _changed();
           }
         }
@@ -207,7 +213,16 @@ class BrewController extends ChangeNotifier {
           : (_scale?.fresh == true ? _scale!.reading!.grams : null);
   bool get hasSetupWeight =>
       (demo || _scale?.fresh == true) && _dosePreparation.hasSetupWeight;
+  bool get equipmentReady => usable && _dosePreparation.readyForDose;
   bool get isDoseWeighing => _weighingDose;
+  bool get preparingAgain => _preparingAgain;
+  bool get addingEquipment =>
+      setup &&
+      isDoseWeighing &&
+      _confirmedDose == null &&
+      currentGrams != null &&
+      _doseBaseline != null &&
+      currentGrams! - _doseBaseline! > DosePreparation.maximumBeanAddition;
   double? get confirmedDose => _confirmedDose;
   double? get suggestedDose =>
       !isDoseWeighing &&
@@ -221,7 +236,7 @@ class BrewController extends ChangeNotifier {
     if (_confirmedDose != null) return _confirmedDose;
     final raw = currentGrams;
     final baseline = _doseBaseline;
-    if (raw == null || baseline == null) return null;
+    if (raw == null || baseline == null || addingEquipment) return null;
     return ((raw - baseline) * 10).roundToDouble() / 10;
   }
 
@@ -237,6 +252,7 @@ class BrewController extends ChangeNotifier {
     if (error == null) {
       _confirmedDose = dose;
       _weighingDose = dose != null;
+      _preparingAgain = false;
       _doseBaseline = null;
       _dosePreparation.reset();
     }
@@ -247,6 +263,7 @@ class BrewController extends ChangeNotifier {
   void returnToEquipment() {
     if (!setup || !canChangeScale) return;
     _weighingDose = false;
+    _preparingAgain = true;
     _doseBaseline = null;
     _confirmedDose = null;
     _dosePreparation.reset();
@@ -261,8 +278,12 @@ class BrewController extends ChangeNotifier {
     if (!canEnterDoseWeighing) return;
     _doseBaseline = currentGrams!;
     _weighingDose = true;
+    _preparingAgain = false;
     _confirmedDose = null;
-    _dosePreparation.reset();
+    _dosePreparation.beginDoseWeighing(
+      _doseBaseline!,
+      demo ? DateTime.now() : _scale!.lastReading!,
+    );
     notice = null;
     _changed();
   }
@@ -318,6 +339,12 @@ class BrewController extends ChangeNotifier {
         }
       }
       _dosePreparation.reset();
+      if (isDoseWeighing && _confirmedDose == null && _doseBaseline != null) {
+        _dosePreparation.beginDoseWeighing(
+          _doseBaseline!,
+          demo ? DateTime.now() : _scale!.lastReading!,
+        );
+      }
     } catch (error) {
       notice = '영점을 확인하지 못했습니다. ($error)';
     } finally {
@@ -356,6 +383,22 @@ class BrewController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  void _observeDosePreparation(
+    double grams,
+    DateTime at, {
+    required Duration maxGap,
+  }) {
+    _dosePreparation.observe(grams, at, maxGap: maxGap);
+    final next = _dosePreparation.setupWeight;
+    if (isDoseWeighing &&
+        _confirmedDose == null &&
+        _doseBaseline != null &&
+        next != null &&
+        next - _doseBaseline! > DosePreparation.maximumBeanAddition) {
+      _doseBaseline = next;
+    }
+  }
+
   void _onScale() {
     if (_disposed || demo) return;
     final scale = _scale;
@@ -365,9 +408,13 @@ class BrewController extends ChangeNotifier {
       _scaleFlow.reset();
       _dosePreparation.reset();
       _doseBaseline = null;
-    } else if (setup && !isDoseWeighing && !starting && !taring && newReading) {
+    } else if (setup &&
+        _confirmedDose == null &&
+        !starting &&
+        !taring &&
+        newReading) {
       final reading = scale.reading!;
-      _dosePreparation.observe(
+      _observeDosePreparation(
         reading.overloaded ? double.nan : reading.grams,
         scale.lastReading!,
         maxGap: scale.readingTimeout,
@@ -527,6 +574,7 @@ class BrewController extends ChangeNotifier {
     _dosePreparation.reset();
     _confirmedDose = null;
     _weighingDose = false;
+    _preparingAgain = false;
     _doseBaseline = null;
     demoWeight = 20;
     _demoReading = 0;
@@ -610,6 +658,7 @@ class BrewController extends ChangeNotifier {
       _scale!.addListener(_onScale);
       _dosePreparation.reset();
       _weighingDose = false;
+      _preparingAgain = false;
       _doseBaseline = null;
       _confirmedDose = null;
       _lastSample = null;
