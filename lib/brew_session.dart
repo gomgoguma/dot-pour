@@ -75,7 +75,6 @@ class BrewSession {
   }
 
   /// Physical scale readings can contain lift/swirl/overload transients.
-  /// Demo data goes directly through [update] because it is already clean.
   void ingestScaleReading(ScaleReading reading) {
     if (!active) return;
     _scaleInput = true;
@@ -94,7 +93,7 @@ class BrewSession {
       }
       flow = 0;
       _flowSamples.clear();
-      _breakBeforeNextPoint = true;
+      _breakBeforeNextPoint = phase == BrewPhase.pouring;
       return;
     }
     if (sample == null) return;
@@ -148,7 +147,6 @@ class BrewSession {
 
   void tick() {
     if (phase != BrewPhase.pouring) return;
-    if (holdingMeasurement) return;
     if (_lastUpdate != null &&
         (_now() - _lastUpdate!) > const Duration(seconds: 1)) {
       flow = 0;
@@ -157,7 +155,8 @@ class BrewSession {
   }
 
   void _record({bool force = false, Duration? at}) {
-    if (holdingMeasurement && at == null) return;
+    // Keep chart time moving at the last confirmed mass during a hold.
+    final breakBefore = _breakBeforeNextPoint && !holdingMeasurement;
     final time =
         at != null && _startedAt != null
             ? (at - _startedAt!).inMicroseconds / 1000000
@@ -166,16 +165,12 @@ class BrewSession {
     if (_points.isNotEmpty && time < _points.last.seconds) return;
     if (_points.isNotEmpty &&
         time - _points.last.seconds < _sampleInterval &&
-        !force) {
+        !force &&
+        !breakBefore) {
       return;
     }
-    final point = BrewPoint(
-      time,
-      water,
-      flow,
-      breakBefore: _breakBeforeNextPoint,
-    );
-    _breakBeforeNextPoint = false;
+    final point = BrewPoint(time, water, flow, breakBefore: breakBefore);
+    if (breakBefore) _breakBeforeNextPoint = false;
     _pointsSnapshot = null;
     if (_points.isNotEmpty && time == _points.last.seconds) {
       _points[_points.length - 1] = BrewPoint(

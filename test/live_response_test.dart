@@ -2,7 +2,6 @@ import 'package:dot_pour/brew_controller.dart';
 import 'package:dot_pour/brew_session.dart';
 import 'package:dot_pour/main.dart';
 import 'package:dot_pour/scales/scale_registry.dart';
-import 'package:dot_pour/ui/scale_status.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -10,6 +9,60 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/fake_scale.dart';
 
 void main() {
+  testWidgets(
+    'mode and bottom navigation preserve preparation and active brew',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+      final prefs = await SharedPreferences.getInstance();
+      final scale = FakeScale('test', supportsTare: true)..emit(18);
+      var now = Duration.zero;
+      final controller = BrewController(
+        prefs,
+        session: BrewSession(now: () => now),
+        scaleRegistry: ScaleRegistry([
+          ScaleRegistration(scale.info, () => scale),
+        ]),
+      );
+      await tester.pumpWidget(
+        DotPourApp(preferences: prefs, controller: controller),
+      );
+      expect(find.byKey(const Key('weighing-panel')), findsOneWidget);
+      controller.setDose(18);
+      await tester.tap(find.text('Espresso'));
+      await tester.pumpAndSettle();
+      expect(find.text('준비 중'), findsOneWidget);
+      expect(find.text('추출 시작'), findsNothing);
+      await tester.tap(find.text('Pour over'));
+      await tester.pumpAndSettle();
+      expect(controller.confirmedDose, 18);
+      await tester.tap(find.text('추출 시작'));
+      await tester.pump();
+      now += const Duration(milliseconds: 100);
+      scale.emit(1);
+      now += const Duration(milliseconds: 100);
+      scale.emit(2);
+      now += const Duration(milliseconds: 100);
+      scale.emit(3);
+      await tester.pump();
+      await tester.tap(find.text('레시피'));
+      await tester.pumpAndSettle();
+      expect(find.text('내 레시피'), findsOneWidget);
+      now += const Duration(milliseconds: 100);
+      scale.emit(4);
+      await tester.tap(find.text('브루잉'));
+      await tester.pumpAndSettle();
+      expect(controller.brew.phase, BrewPhase.pouring);
+      expect(controller.brew.water, 3);
+      expect(find.byKey(const Key('brew-elapsed')), findsOneWidget);
+      expect(find.text('추출 시간'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   testWidgets('physical readings paint on the next frame during brewing', (
     tester,
   ) async {
@@ -50,10 +103,10 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('diagnostics stay off until requested and fit a narrow phone', (
+  testWidgets('connected scale battery stays visible on a narrow phone', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(360, 800);
+    tester.view.physicalSize = const Size(320, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -74,25 +127,22 @@ void main() {
       ]),
     );
     scale.emit(20);
-    await tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: ScaleStatusSheet(controller: c))),
-    );
+    await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
+    final battery = find.byKey(const Key('scale-battery'));
+    expect(tester.widget<Text>(battery).data, '80%');
+    expect(find.byType(BottomSheet), findsNothing);
+    scale.battery = 71;
+    scale.emit(20.1);
+    await tester.pump();
+    expect(tester.widget<Text>(battery).data, '71%');
+    await tester.tap(find.text('연결됨'));
     await tester.pumpAndSettle();
     expect(find.text('Dot Pour 0.4.4+9'), findsOneWidget);
-    expect(c.diagnostics.recording, false);
-    await tester.tap(find.text('반응속도 진단'));
+    expect(find.text('반응속도 진단'), findsNothing);
+    await tester.tap(find.text('연결 해제'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('새 진단 기록 시작'));
-    await tester.pump();
-    scale.emit(21);
-    await tester.pump();
-    expect(c.diagnostics.recording, true);
-    expect(find.text('21g'), findsOneWidget);
-    await tester.tap(find.text('기록 중지'));
-    await tester.pump();
-    expect(c.diagnostics.recording, false);
+    expect(battery, findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
-    c.dispose();
   });
 }

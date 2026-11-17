@@ -46,14 +46,20 @@ void main() {
     expect(f.brew.flow, 0);
   });
 
-  test('putting the server back while pouring resumes without a plateau', () {
+  test('a fast pour recovers without publishing a duplicate sample', () {
     final f = PourFixture()..reach(160);
     f.send(-350, repeats: 8);
     f.send(320); // Landing bounce must not become poured water.
-    for (var raw = 170.0; raw <= 190; raw++) {
-      f.send(raw);
-      if (raw >= 174) expect(f.brew.holdingMeasurement, false);
-    }
+    f.send(170);
+    f.send(175);
+    expect(f.brew.water, 160);
+    f.send(180);
+    expect(f.brew.holdingMeasurement, false);
+    expect(f.brew.water, 175);
+    f.send(185);
+    expect(f.brew.water, 180);
+    f.send(190);
+    expect(f.brew.water, 185);
     f.send(190);
     expect(f.brew.water, 190);
     expect(f.brew.points.every((p) => p.grams <= 190), true);
@@ -141,7 +147,6 @@ void main() {
     () {
       final f = PourFixture()..reach(160);
       final before = f.brew.seconds;
-      final pointCount = f.brew.points.length;
       for (final bad in [-400.0, -200.0, 0.0, 390.0, 20.0, -5.0]) {
         f.send(bad);
         expect(f.brew.water, 160);
@@ -151,7 +156,12 @@ void main() {
         expect(f.brew.flow, 0);
       }
       expect(f.brew.seconds, greaterThan(before));
-      expect(f.brew.points.length, lessThanOrEqualTo(pointCount + 1));
+      final plateau = f.brew.points.where((p) => p.seconds > before).toList();
+      expect(plateau, isNotEmpty);
+      expect(
+        plateau.every((p) => p.grams == 160 && p.flow == 0 && !p.breakBefore),
+        true,
+      );
       expect(f.brew.points.last.grams, 160);
       f.send(160, repeats: 5);
       expect(f.brew.holdingMeasurement, false);
@@ -195,7 +205,9 @@ void main() {
       expect(f.brew.percent, 50);
       expect(f.brew.active, true);
       f.brew.finish();
-      expect(f.brew.toRecipe('zero').trace.last.grams, 160);
+      final endpoint = f.brew.toRecipe('zero').trace.last;
+      expect(endpoint.grams, 160);
+      expect(endpoint.seconds, f.brew.seconds);
     },
   );
 

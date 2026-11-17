@@ -70,7 +70,7 @@ final class MyCentralManager extends PlatformCentralManager
   Future<void> _resumeMeasurements() async {
     try {
       await const MethodChannel(
-        'dot_pour/ble_latency',
+        'dot_pour/ble_control',
       ).invokeMethod<void>('resume').timeout(const Duration(seconds: 1));
     } catch (_) {
       // Link tuning is best-effort and must not disrupt an existing stream.

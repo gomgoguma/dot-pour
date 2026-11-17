@@ -9,7 +9,7 @@ import io.flutter.plugin.common.MethodChannel
 class BluetoothLowEnergyAndroidPlugin : FlutterPlugin, ActivityAware {
     private lateinit var mCentralManager: MyCentralManager
     private lateinit var mPeripheralManager: MyPeripheralManager
-    private var latencyChannel: MethodChannel? = null
+    private var measurementChannel: MethodChannel? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         val context = binding.applicationContext
@@ -18,12 +18,9 @@ class BluetoothLowEnergyAndroidPlugin : FlutterPlugin, ActivityAware {
         mPeripheralManager = MyPeripheralManager(context, binaryMessenger)
         MyCentralManagerHostAPI.setUp(binaryMessenger, mCentralManager)
         MyPeripheralManagerHostAPI.setUp(binaryMessenger, mPeripheralManager)
-        latencyChannel = MethodChannel(binaryMessenger, "dot_pour/ble_latency").also { channel ->
+        measurementChannel = MethodChannel(binaryMessenger, "dot_pour/ble_control").also { channel ->
             channel.setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "snapshot" -> result.success(mCentralManager.measurementLinkSnapshot())
-                    "capture_start" -> result.success(mCentralManager.beginMeasurementCapture())
-                    "capture_stop" -> result.success(mCentralManager.endMeasurementCapture())
                     "resume" -> { mCentralManager.resumeMeasurementLinks(); result.success(null) }
                     else -> result.notImplemented()
                 }
@@ -37,8 +34,8 @@ class BluetoothLowEnergyAndroidPlugin : FlutterPlugin, ActivityAware {
         val binaryMessenger = binding.binaryMessenger
         MyCentralManagerHostAPI.setUp(binaryMessenger, null)
         MyPeripheralManagerHostAPI.setUp(binaryMessenger, null)
-        latencyChannel?.setMethodCallHandler(null)
-        latencyChannel = null
+        measurementChannel?.setMethodCallHandler(null)
+        measurementChannel = null
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {

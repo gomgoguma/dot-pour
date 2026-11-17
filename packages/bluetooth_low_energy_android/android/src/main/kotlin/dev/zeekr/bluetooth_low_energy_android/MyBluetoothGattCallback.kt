@@ -11,25 +11,11 @@ import java.util.concurrent.ConcurrentHashMap
 class MyBluetoothGattCallback(manager: MyCentralManager, executor: Executor) : BluetoothGattCallback() {
     private val mManager: MyCentralManager
     private val mExecutor: Executor
-    private data class Notification(val characteristic: BluetoothGattCharacteristic, val value: ByteArray, val receivedAtNs: Long)
+    private data class Notification(val characteristic: BluetoothGattCharacteristic, val value: ByteArray)
     private val pumps = ConcurrentHashMap<BluetoothGatt, NotificationPump<Notification>>()
     private val closedGatts = java.util.Collections.newSetFromMap(java.util.WeakHashMap<BluetoothGatt, Boolean>())
     private var shutDown = false
-    private var capturePumps = emptyList<NotificationPump<Notification>>()
-    private var captureStart = emptyList<Map<String, Any>>()
     private val measurementUUID = java.util.UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
-
-    fun beginDeliveryCapture() {
-        capturePumps = pumps.values.toList()
-        captureStart = capturePumps.map { it.snapshot() }
-    }
-    fun endDeliveryCapture(): Map<String, Any> {
-        val result = mapOf("at_start" to captureStart, "at_stop" to capturePumps.map { it.snapshot() })
-        capturePumps = emptyList()
-        captureStart = emptyList()
-        return result
-    }
-    fun deliverySnapshot() = pumps.values.map { it.snapshot() }
 
     @Synchronized
     fun closeNotifications(gatt: BluetoothGatt) {
@@ -48,14 +34,13 @@ class MyBluetoothGattCallback(manager: MyCentralManager, executor: Executor) : B
     @Synchronized
     private fun notification(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
         if (shutDown || closedGatts.contains(gatt)) return
-        val receivedAtNs = System.nanoTime()
         val snapshot = value.copyOf()
         val pump = pumps.getOrPut(gatt) {
             NotificationPump(mExecutor) { item: Notification, done ->
-                mManager.onCharacteristicChanged(gatt, item.characteristic, item.value, item.receivedAtNs, done)
+                mManager.onCharacteristicChanged(gatt, item.characteristic, item.value, done)
             }
         }
-        pump.offer(Notification(characteristic, snapshot, receivedAtNs),
+        pump.offer(Notification(characteristic, snapshot),
             characteristic.uuid == measurementUUID && DotWeightFrame.replaceable(snapshot))
     }
 

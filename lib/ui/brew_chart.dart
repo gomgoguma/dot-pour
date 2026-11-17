@@ -109,6 +109,18 @@ class _ChartPainter extends CustomPainter {
       bounds.left + p.seconds / maxTime * bounds.width,
       bounds.bottom - p.grams / maxMass * bounds.height,
     );
+    Path tracePath(List<BrewPoint> trace) {
+      var previous = location(trace.first);
+      final path = Path()..moveTo(previous.dx, previous.dy);
+      for (final point in trace.skip(1)) {
+        final current = location(point);
+        if (point.breakBefore) path.lineTo(current.dx, previous.dy);
+        path.lineTo(current.dx, current.dy);
+        previous = current;
+      }
+      return path;
+    }
+
     void text(String value, Offset offset, {bool right = false}) {
       final painter = TextPainter(
         text: TextSpan(text: value, style: labelStyle),
@@ -140,19 +152,7 @@ class _ChartPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(bounds);
     if (reference.isNotEmpty) {
-      final path =
-          Path()..moveTo(
-            location(reference.first).dx,
-            location(reference.first).dy,
-          );
-      for (final p in reference.skip(1)) {
-        final at = location(p);
-        if (p.breakBefore) {
-          path.moveTo(at.dx, at.dy);
-        } else {
-          path.lineTo(at.dx, at.dy);
-        }
-      }
+      final path = tracePath(reference);
       final paint =
           Paint()
             ..color = copper.withValues(alpha: 0.8)
@@ -168,35 +168,13 @@ class _ChartPainter extends CustomPainter {
       }
     }
     if (points.isNotEmpty) {
-      final path = Path();
-      final fill = Path();
-      var first = location(points.first), last = first;
-      var segment = Path()..moveTo(first.dx, first.dy);
-      void finishSegment() {
-        path.addPath(segment, Offset.zero);
-        fill.addPath(
-          Path.from(segment)
-            ..lineTo(last.dx, bounds.bottom)
-            ..lineTo(first.dx, bounds.bottom)
-            ..close(),
-          Offset.zero,
-        );
-      }
-
-      for (final point in points.skip(1)) {
-        final at = location(point);
-        if (point.breakBefore) {
-          finishSegment();
-          first = at;
-          segment = Path()..moveTo(at.dx, at.dy);
-        } else {
-          segment.lineTo(at.dx, at.dy);
-        }
-        last = at;
-      }
-      finishSegment();
+      final path = tracePath(points);
+      final last = location(points.last);
       canvas.drawPath(
-        fill,
+        Path.from(path)
+          ..lineTo(last.dx, bounds.bottom)
+          ..lineTo(location(points.first).dx, bounds.bottom)
+          ..close(),
         Paint()
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
@@ -212,7 +190,7 @@ class _ChartPainter extends CustomPainter {
           ..strokeJoin = StrokeJoin.round
           ..style = PaintingStyle.stroke,
       );
-      canvas.drawCircle(location(points.last), 4, Paint()..color = ink);
+      canvas.drawCircle(last, 4, Paint()..color = ink);
     }
     if (seconds > 0) {
       final x = bounds.left + seconds / maxTime * bounds.width;

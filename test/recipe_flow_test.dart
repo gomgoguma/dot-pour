@@ -53,7 +53,7 @@ void main() {
     expect(find.text('저장 완료'), findsOneWidget);
     await tester.tap(find.text('새 추출'));
     await tester.pump();
-    await tester.tap(find.byTooltip('내 레시피'));
+    await tester.tap(find.text('레시피'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('테스트 한 잔'));
     await tester.pumpAndSettle();
@@ -124,31 +124,46 @@ void main() {
   );
 
   testWidgets(
-    'compact settings on a narrow phone use exactly the requested presets',
+    'home ratio is editable and updates the target on a narrow phone',
     (tester) async {
       phone(tester, width: 320);
       SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
       final prefs = await SharedPreferences.getInstance();
-      await tester.pumpWidget(DotPourApp(preferences: prefs));
-      expect(find.text('남은 물'), findsNothing);
+      final controller = BrewController(prefs)..demo = true;
+      await tester.pumpWidget(
+        DotPourApp(preferences: prefs, controller: controller),
+      );
+      final input = find.byKey(const Key('ratio-input'));
+      expect(tester.widget<TextField>(input).controller!.text, '16');
+      expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.byKey(const Key('dose-input')), findsNothing);
-      await tester.tap(find.text('설정'));
-      await tester.pumpAndSettle();
-      for (final ratio in ['1:9', '1:10', '1:11', '1:15', '1:16.7', '1:17']) {
-        expect(find.text(ratio), findsOneWidget);
-      }
-      expect(find.byKey(const Key('dose-input')), findsNothing);
+
+      await tester.ensureVisible(find.byKey(const Key('increase-ratio')));
+      await tester.tap(find.byKey(const Key('increase-ratio')));
+      await tester.pump();
+      expect(tester.widget<TextField>(input).controller!.text, '16.5');
+      expect(find.text('원두 20g · 목표 물 330g'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('decrease-ratio')));
+      await tester.pump();
+      expect(tester.widget<TextField>(input).controller!.text, '16');
+
+      final preset = find.byKey(const Key('ratio-preset-17'));
+      await tester.ensureVisible(preset);
+      await tester.tap(preset);
+      await tester.pump();
+      expect(tester.widget<TextField>(input).controller!.text, '17');
+      expect(controller.brew.ratio, 17);
+      expect(find.text('원두 20g · 목표 물 340g'), findsOneWidget);
+      expect(prefs.getDouble('ratio'), 17);
+
       tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       addTearDown(tester.view.resetViewInsets);
+      await tester.enterText(input, '16.7');
       await tester.pump();
-      await tester.ensureVisible(find.text('1:16.7'));
-      await tester.tap(find.text('1:16.7'));
-      await tester.ensureVisible(find.text('설정 완료'));
-      await tester.tap(find.text('설정 완료'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('원두 20g · 목표 물 334g'), findsOneWidget);
       expect(prefs.getDouble('ratio'), 16.7);
       expect(prefs.getDouble('dose'), isNull);
+      expect(find.byType(BottomSheet), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },

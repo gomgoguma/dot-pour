@@ -3,6 +3,8 @@ import 'style.dart';
 
 class BrewMetrics extends StatelessWidget {
   final double water, target, percent, flow;
+  final String? liveWeight;
+  final bool holdingMeasurement;
 
   const BrewMetrics({
     super.key,
@@ -10,26 +12,61 @@ class BrewMetrics extends StatelessWidget {
     required this.target,
     required this.percent,
     required this.flow,
+    this.liveWeight,
+    this.holdingMeasurement = false,
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: line),
-    ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 18),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          '부은 물 / 목표 물',
-          style: TextStyle(
-            color: muted,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Expanded(
+              child: Text(
+                '부은 물',
+                style: TextStyle(
+                  color: muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (holdingMeasurement)
+              Tooltip(
+                message: '저울값 안정 대기',
+                child: Padding(
+                  padding: const EdgeInsets.all(5),
+                  child: Semantics(
+                    label: '저울값 안정 대기',
+                    child: const Icon(
+                      Icons.circle,
+                      key: Key('weight-hold-indicator'),
+                      size: 7,
+                      color: Color(0xffbc8638),
+                    ),
+                  ),
+                ),
+              ),
+            if (liveWeight != null) ...[
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  liveWeight!,
+                  key: const Key('brew-live-weight'),
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                    color: muted,
+                    fontSize: 11,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: 8),
         Semantics(
@@ -53,7 +90,7 @@ class BrewMetrics extends StatelessWidget {
                   TextSpan(
                     text: number(target),
                     style: const TextStyle(
-                      fontSize: 46,
+                      fontSize: 28,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -65,10 +102,10 @@ class BrewMetrics extends StatelessWidget {
               ),
               key: const Key('brew-water-target'),
               style: const TextStyle(
-                fontSize: 56,
+                fontSize: 72,
                 height: 1.15,
                 letterSpacing: -1.8,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w400,
                 color: ink,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
@@ -100,7 +137,7 @@ class BrewMetrics extends StatelessWidget {
                   LinearProgressIndicator(
                     key: const Key('brew-progress'),
                     value: (percent / 100).clamp(0.0, 1.0),
-                    minHeight: 9,
+                    minHeight: 4,
                     borderRadius: BorderRadius.circular(8),
                     backgroundColor: mint,
                     color: copper,

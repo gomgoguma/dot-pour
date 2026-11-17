@@ -1,5 +1,5 @@
 Generated with the built-in image_gen tool; no API/CLI fallback.
-Final image: dot-pour-drops.png (opaque green background and off-white outlines).
+Final image: dot-pour-drops.png (opaque warm-charcoal background and off-white outlines).
 Reference: user's supplied small two-droplet outline image. App name remains Dot Pour.
 The earlier single-droplet asset is retained as a historical design.
 
@@ -20,3 +20,6 @@ Edit target: the supplied generated two-droplet logo.
 Keep exactly the composition and geometry of the two overlapping droplet OUTLINES: small in front-left, large behind-right, with the large contour interrupted behind the small one. Keep the rounded uniform off-white strokes.
 Required correction: make this a completely CLEAN flat icon. Remove every stray white fleck, speckle, ragged halo, mottled patch and transparency artifact inside the droplets and outside the strokes. Only the TWO smooth continuous outline strokes should be off-white #F7F5EF. All other pixels, including BOTH droplet interiors, all gaps and the entire square background, must be a perfectly uniform solid deep forest green #233E36. The background is intentionally OPAQUE now. No gradient, no texture, no shading, no shadow, no grain. Do not retain any noise from the source.
 High-resolution square production app icon. Balanced margin around the pair, no text or border.
+
+Theme color correction, 2026-11-17 (built-in image_gen):
+Use case: precise-object-edit. Edit target: the provided existing Dot Pour app logo. Change ONLY the colors to match its updated UI. Replace the forest-green background, including the interiors and all gaps of both droplets, with solid warm charcoal #35312E. Keep the two existing off-white droplet outlines, using #F8F5F0. Preserve exactly the existing geometry, line thickness, positions, sizes, rounded tips, overlap interruptions, margins, and square composition of the source. This is a color correction of an established app icon. Perfectly flat, uniform, opaque colors with clean antialiased edges. No texture, grain, gradient, highlights, shadow, text, added objects or rounded canvas corners. The image must be suitable for direct app icon export.

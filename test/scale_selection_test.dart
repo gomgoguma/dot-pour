@@ -26,7 +26,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('추출 시작'), findsOneWidget);
       expect(prefs.getString(BrewController.selectedScaleKey), 'timemore-dot');
-      expect(find.text('원두 : 물   1:16.7'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('ratio-input')))
+            .controller!
+            .text,
+        '16.7',
+      );
+      await tester.tap(find.text('설정'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('change-scale')));
       await tester.pumpAndSettle();
       expect(find.text('저울 선택'), findsOneWidget);
@@ -35,6 +43,8 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(DotPourApp(preferences: prefs));
       expect(find.text('저울 모델 선택'), findsNothing);
+      await tester.tap(find.text('설정'));
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('change-scale')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

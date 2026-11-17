@@ -75,7 +75,7 @@ class PourSignal {
         final last = _recovery.last;
         final gap = (at - last.at).inMicroseconds / 1000000;
         final change = grams - last.grams;
-        if (gap > 2 || change < -2 || change > math.max(4, 40 * gap)) {
+        if (gap > 2 || change < -2 || change > math.max(6, 60 * gap)) {
           _recovery.clear();
         }
       }
@@ -86,18 +86,21 @@ class PourSignal {
       // Keep the known poured amount if the returned load settles slightly
       // lower. Subsequent additions use this load as their reference. A zero
       // reset or a large missing mass is deliberately not rebased.
-      if (cumulative && grams + _offset < _accepted.grams) {
-        _offset = _accepted.grams - grams;
+      // Publish the last reading backed by a following sample, just as in a
+      // normal pour. Keep the newest pending so it is published exactly once.
+      final ready = _recovery[_recovery.length - 2];
+      if (cumulative && ready.grams + _offset < _accepted.grams) {
+        _offset = _accepted.grams - ready.grams;
       }
       holding = false;
       _recovery.clear();
       _pending = sample;
-      _rawAccepted = sample;
+      _rawAccepted = ready;
       _accepted = PourSample(
-        at,
+        ready.at,
         cumulative
-            ? math.max(_accepted.grams, grams + _offset)
-            : math.max(0, grams),
+            ? math.max(_accepted.grams, ready.grams + _offset)
+            : math.max(0, ready.grams),
       );
       return _accepted;
     }

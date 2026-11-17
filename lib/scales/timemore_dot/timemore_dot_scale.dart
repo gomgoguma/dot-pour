@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:flutter/services.dart';
 import '../scale.dart';
-import '../android_link_diagnostics.dart';
 import 'protocol.dart';
 
 class TimemoreDotScale extends CoffeeScale {
@@ -28,22 +27,6 @@ class TimemoreDotScale extends CoffeeScale {
     _initialize();
     await _manager!.showAppSettings();
   }
-
-  @override
-  Future<Map<String, Object?>> connectionDiagnostics() async =>
-      Platform.isAndroid && connected ? await readAndroidLinkDiagnostics() : {};
-
-  @override
-  Future<Map<String, Object?>> beginDiagnosticCapture() async =>
-      Platform.isAndroid && connected
-          ? await readAndroidLinkDiagnostics(method: 'capture_start')
-          : {};
-
-  @override
-  Future<Map<String, Object?>> endDiagnosticCapture() async =>
-      Platform.isAndroid
-          ? await readAndroidLinkDiagnostics(method: 'capture_stop')
-          : {};
 
   static const modelInfo = ScaleInfo(
     id: 'timemore-dot',
@@ -258,7 +241,7 @@ class TimemoreDotScale extends CoffeeScale {
       await starting.timeout(const Duration(seconds: 8));
       if (!current()) return;
       scanning = true;
-      discoveryStatus = '주변 기기 검색 중 · 12초';
+      discoveryStatus = 'DOT 저울 검색 중';
       _scanTimer = Timer(const Duration(seconds: 12), stopScan);
     } catch (e) {
       if (current()) {
@@ -283,7 +266,7 @@ class TimemoreDotScale extends CoffeeScale {
     final requested = _discoveryRequested;
     _discoveryRequested = false;
     scanning = false;
-    discoveryStatus = '검색 종료 · ${_devices.length}개 수신';
+    discoveryStatus = '검색 종료';
     try {
       if (requested) {
         await _manager?.stopDiscovery().timeout(const Duration(seconds: 4));

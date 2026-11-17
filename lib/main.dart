@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'brew_controller.dart';
+import 'brew_session.dart';
 import 'ui/brew_chart.dart';
 import 'ui/brew_timer.dart';
 import 'ui/brew_metrics.dart';
@@ -42,21 +44,15 @@ class BrewScreen extends StatefulWidget {
 
 class _BrewScreenState extends State<BrewScreen> {
   late final c = widget.controller ?? BrewController(widget.preferences);
-  Future<void> _settings() => showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder:
-        (_) => BrewSettingsSheet(
-          ratio: c.brew.ratio,
-          scaling: c.reference != null,
-          onSave: c.configureRatio,
-        ),
-  );
-  Future<void> _library() => Navigator.push(
-    context,
-    MaterialPageRoute<void>(builder: (_) => RecipeLibrary(controller: c)),
-  );
+  late final _version = PackageInfo.fromPlatform();
+  bool _ratioInputValid = true;
+
+  void _onRatioValidityChanged(bool valid) {
+    if (mounted && _ratioInputValid != valid) {
+      setState(() => _ratioInputValid = valid);
+    }
+  }
+
   Future<void> _selectScale() => Navigator.push(
     context,
     MaterialPageRoute<void>(
@@ -150,6 +146,26 @@ class _BrewScreenState extends State<BrewScreen> {
     if (c.canSave) await _save();
   }
 
+  int _page = 0;
+  bool _espresso = false;
+
+  void _openBrewing() {
+    setState(() {
+      _page = 0;
+      _espresso = false;
+      _ratioInputValid = true;
+    });
+  }
+
+  Future<void> _connection() async {
+    final scale = c.scale!;
+    if (scale.connected) {
+      await showScaleStatus(context, c);
+    } else {
+      await showDevicePicker(context, scale);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: c,
@@ -158,51 +174,37 @@ class _BrewScreenState extends State<BrewScreen> {
       if (scale == null) {
         return ScaleSelectionScreen(controller: c, firstRun: true);
       }
-      final brew = c.brew;
-      if (c.diagnostics.recording) {
-        final sequence = c.diagnostics.sequence;
-        final raw = scale.reading?.grams;
-        final water = brew.water;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          c.diagnostics.frame(sequence, raw: raw, water: water);
-        });
-      }
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           toolbarHeight: 64,
-          titleSpacing: 20,
+          titleSpacing: 24,
           scrolledUnderElevation: 0,
-          backgroundColor: paper,
           title: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 640),
+              constraints: const BoxConstraints(maxWidth: 560),
               child: Row(
                 key: const Key('brew-header'),
                 children: [
-                  const BrandMark(),
-                  const SizedBox(width: 8),
+                  const BrandMark(size: 27),
+                  const SizedBox(width: 9),
                   const Expanded(
                     child: Text(
                       'dot pour',
                       style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.7,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.8,
                       ),
                     ),
                   ),
                   if (c.demo)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        'DEMO',
-                        style: TextStyle(
-                          fontSize: 10,
-                          letterSpacing: 1.5,
-                          color: copper,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    const Text(
+                      'DEMO',
+                      style: TextStyle(
+                        fontSize: 10,
+                        letterSpacing: 1.5,
+                        color: copper,
                       ),
                     )
                   else
@@ -210,352 +212,439 @@ class _BrewScreenState extends State<BrewScreen> {
                       onPressed:
                           scale.busy ||
                                   c.starting ||
-                                  (brew.active && !scale.connected)
+                                  c.taring ||
+                                  (c.brew.active && !scale.connected)
                               ? null
-                              : () async {
-                                if (scale.connected) {
-                                  await showScaleStatus(context, c);
-                                } else {
-                                  await showDevicePicker(context, scale);
-                                }
-                              },
+                              : _connection,
+                      style: TextButton.styleFrom(
+                        foregroundColor: muted,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
                       icon: Icon(
                         scale.connected
                             ? Icons.bluetooth_connected
                             : Icons.bluetooth,
-                        size: 17,
+                        size: 16,
                       ),
-                      label: Text(
-                        scale.connected ? '연결됨' : '연결',
-                        style: const TextStyle(fontSize: 12),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            scale.connected ? '연결됨' : '연결',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          if (scale.connected && scale.battery != null) ...[
+                            const SizedBox(width: 7),
+                            Text(
+                              '${scale.battery}%',
+                              key: const Key('scale-battery'),
+                              semanticsLabel: '저울 배터리 ${scale.battery}%',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: ink,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  IconButton(
-                    tooltip: '내 레시피',
-                    onPressed: c.starting ? null : _library,
-                    icon: const Icon(Icons.menu_book_outlined, size: 23),
-                  ),
                 ],
               ),
             ),
           ),
-        ),
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: Center(
-            heightFactor: 1,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 680),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (c.setup)
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: c.canStart ? c.start : null,
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          label: Text(c.starting ? '영점 확인 중…' : '추출 시작'),
-                        ),
-                      )
-                    else if (brew.active)
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: _finish,
-                          icon: const Icon(Icons.stop_rounded),
-                          label: const Text('추출 마치기'),
-                        ),
-                      )
-                    else
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: c.reset,
-                              child: const Text('새 추출'),
-                            ),
+          bottom:
+              _page == 0
+                  ? PreferredSize(
+                    preferredSize: const Size.fromHeight(52),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 608),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Row(
+                            children: [
+                              Flexible(child: _modeTab('Pour over', false)),
+                              const SizedBox(width: 26),
+                              Flexible(child: _modeTab('Espresso', true)),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: FilledButton.icon(
-                              onPressed: c.canSave ? _save : null,
-                              icon: Icon(
-                                c.savedId != null
-                                    ? Icons.check
-                                    : Icons.bookmark_add_outlined,
-                                size: 19,
-                              ),
-                              label: Text(
-                                c.savedId != null ? '저장 완료' : '레시피로 저장',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    if (!brew.active)
-                      SizedBox(
-                        height: 34,
-                        child: Row(
-                          children: [
-                            if (c.demoAvailable)
-                              Expanded(
-                                flex: 3,
-                                child: TextButton(
-                                  onPressed:
-                                      c.canChangeScale ? c.toggleDemo : null,
-                                  child: Text(
-                                    c.demo ? '실제 저울로 전환' : '저울 없이 데모로 체험',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: muted,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            Expanded(
-                              flex: 2,
-                              child: TextButton.icon(
-                                key: const Key('change-scale'),
-                                onPressed:
-                                    c.canChangeScale ? _selectScale : null,
-                                icon: const Icon(
-                                  Icons.tune_rounded,
-                                  size: 14,
-                                  color: muted,
-                                ),
-                                label: Text(
-                                  '${scale.info.shortName} · 변경',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: muted,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        body: SafeArea(
-          bottom: false,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 680),
-              child: SingleChildScrollView(
-                key: const Key('brew-scroll'),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    InkWell(
-                      onTap: c.setup && !c.starting ? _settings : null,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
-                        decoration: BoxDecoration(
-                          color: mint,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.coffee_outlined,
-                              size: 17,
-                              color: ink,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                c.setup
-                                    ? '원두 : 물   1:${number(brew.ratio)}'
-                                    : '원두 ${number(brew.dose)}g   ·   1:${number(brew.ratio)}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            if (c.setup)
-                              const Row(
-                                children: [
-                                  Text('설정', style: TextStyle(fontSize: 11)),
-                                  SizedBox(width: 4),
-                                  Icon(Icons.tune_rounded, size: 17),
-                                ],
-                              )
-                            else
-                              const Icon(
-                                Icons.lock_outline_rounded,
-                                size: 14,
-                                color: muted,
-                              ),
-                          ],
                         ),
                       ),
                     ),
-                    if (c.reference != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.bookmark_outline,
-                              size: 16,
-                              color: copper,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                c.reference!.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: copper,
-                                ),
-                              ),
-                            ),
-                            if (c.setup)
-                              IconButton(
-                                tooltip: '레시피 해제',
-                                onPressed: c.clearRecipe,
-                                icon: const Icon(Icons.close, size: 16),
-                              ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(height: 14),
-                    if (c.setup)
-                      WeighingPanel(controller: c)
-                    else ...[
-                      BrewMetrics(
-                        water: brew.water,
-                        target: brew.target,
-                        percent: brew.percent,
-                        flow: brew.flow,
-                      ),
-                      const SizedBox(height: 12),
-                      BrewTimer(
-                        seconds: brew.seconds,
-                        phase: brew.phase,
-                        reached: brew.reached,
-                        holdingMeasurement: brew.holdingMeasurement,
-                      ),
-                      const SizedBox(height: 14),
-                      BrewChart(
-                        points: brew.points,
-                        reference: c.reference,
-                        target: brew.target,
-                        seconds: brew.seconds,
-                        height:
-                            MediaQuery.sizeOf(context).width < 500 ? 160 : 212,
-                      ),
-                    ],
-                    if (c.guide != null) ...[
-                      const SizedBox(height: 14),
-                      _guide(),
-                    ],
-                    if (c.demo && brew.active) ...[
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.science_outlined,
-                            size: 17,
-                            color: copper,
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              '데모: 부은 물',
-                              style: TextStyle(fontSize: 12, color: muted),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: c.toggleDemoPour,
-                            child: Text(
-                              c.demoAuto
-                                  ? '붓기 멈춤'
-                                  : c.reference != null
-                                  ? '가이드 따라 붓기'
-                                  : '자동으로 붓기',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Slider(
-                        key: const Key('demo-water'),
-                        value: c.demoWeight.clamp(0, brew.target * 1.25),
-                        max: brew.target * 1.25,
-                        onChanged: c.setDemoWeight,
-                      ),
-                    ],
-                    if (c.notice != null || (!c.demo && scale.error != null))
-                      Container(
-                        margin: const EdgeInsets.only(top: 12),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xfff4e7d9),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          c.notice ?? scale.error!,
-                          style: const TextStyle(fontSize: 12, height: 1.5),
-                        ),
-                      ),
-                    if (!c.demo && scale.connected)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                scale.reading?.overloaded == true
-                                    ? '저울 용량 초과'
-                                    : !scale.fresh
-                                    ? '무게 수신 대기 중…'
-                                    : '저울 ${number(scale.reading!.grams)}g${scale.battery == null ? '' : '  ·  배터리 ${scale.battery}%'}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: muted,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (c.setup)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 18),
-                        child: Text(
-                          '서버·드리퍼 TARE → 원두 계량 → 추출 시작\n원두량으로 목표 물의 무게를 계산하고 0g부터 기록합니다.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: muted,
-                            fontSize: 11,
-                            height: 1.6,
-                          ),
-                        ),
-                      ),
-                  ],
+                  )
+                  : null,
+        ),
+        body: switch (_page) {
+          1 => RecipeLibrary(controller: c, onRecipeLoaded: _openBrewing),
+          2 => _settings(),
+          _ => _espresso ? _espressoPlaceholder() : _brewing(),
+        },
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_page == 0 && !_espresso)
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 608),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 10, 24, 8),
+                    child: _brewActions(),
+                  ),
                 ),
+              ),
+            const Divider(height: 1),
+            NavigationBar(
+              selectedIndex: _page,
+              onDestinationSelected: (page) {
+                if (c.starting || c.taring) return;
+                FocusScope.of(context).unfocus();
+                setState(() {
+                  _page = page;
+                  _ratioInputValid = true;
+                });
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.water_drop_outlined, size: 22),
+                  selectedIcon: Icon(Icons.water_drop, size: 22),
+                  label: '브루잉',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.menu_book_outlined, size: 22),
+                  selectedIcon: Icon(Icons.menu_book_rounded, size: 22),
+                  label: '레시피',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.tune_rounded, size: 22),
+                  label: '설정',
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
+
+  Widget _modeTab(String label, bool espresso) {
+    final selected = _espresso == espresso;
+    return Semantics(
+      selected: selected,
+      child: TextButton(
+        onPressed:
+            c.brew.active || c.starting || c.taring
+                ? null
+                : () {
+                  FocusScope.of(context).unfocus();
+                  setState(() {
+                    _espresso = espresso;
+                    _ratioInputValid = true;
+                  });
+                },
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          foregroundColor: selected ? ink : muted,
+          disabledForegroundColor: selected ? ink : muted,
+          shape: const RoundedRectangleBorder(),
+          side: BorderSide.none,
+        ),
+        child: Container(
+          padding: const EdgeInsets.only(bottom: 9),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: selected ? copper : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 19,
+                letterSpacing: -0.5,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ),
         ),
-      );
-    },
+      ),
+    );
+  }
+
+  Widget _espressoPlaceholder() => const Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.local_cafe_outlined, size: 40, color: copper),
+        SizedBox(height: 20),
+        Text(
+          'Espresso',
+          style: TextStyle(fontSize: 27, fontWeight: FontWeight.w500),
+        ),
+        SizedBox(height: 8),
+        Text('준비 중', style: TextStyle(color: muted, fontSize: 13)),
+      ],
+    ),
+  );
+
+  Widget _brewActions() {
+    final brew = c.brew;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (c.setup)
+          FilledButton.icon(
+            onPressed:
+                c.canStart && _ratioInputValid
+                    ? () {
+                      FocusScope.of(context).unfocus();
+                      c.start();
+                    }
+                    : null,
+            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+            label: Text(c.starting ? '영점 확인 중…' : '추출 시작'),
+          )
+        else if (brew.active)
+          FilledButton.icon(
+            onPressed: _finish,
+            icon: const Icon(Icons.stop_rounded, size: 18),
+            label: const Text('추출 마치기'),
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: c.reset,
+                  child: const Text('새 추출'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: c.canSave ? _save : null,
+                  child: Text(c.savedId != null ? '저장 완료' : '레시피로 저장'),
+                ),
+              ),
+            ],
+          ),
+        if (c.demoAvailable && c.setup)
+          TextButton(
+            onPressed: c.canChangeScale ? c.toggleDemo : null,
+            child: Text(
+              c.demo ? '실제 저울로 전환' : '저울 없이 데모로 체험',
+              style: const TextStyle(fontSize: 11, color: muted),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _brewing() {
+    final brew = c.brew;
+    final scale = c.scale!;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 608),
+        child: SingleChildScrollView(
+          key: const Key('brew-scroll'),
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (c.reference != null)
+                Row(
+                  children: [
+                    const Icon(Icons.bookmark_outline, size: 15, color: copper),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        c.reference!.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: copper),
+                      ),
+                    ),
+                    if (c.setup)
+                      IconButton(
+                        tooltip: '레시피 해제',
+                        onPressed: c.clearRecipe,
+                        icon: const Icon(Icons.close, size: 16),
+                      ),
+                  ],
+                ),
+              if (c.setup) ...[
+                WeighingPanel(controller: c),
+                const Divider(height: 24),
+                BrewRatioInput(
+                  ratio: brew.ratio,
+                  enabled: !c.starting && !c.taring,
+                  onChanged: c.configureRatio,
+                  onValidityChanged: _onRatioValidityChanged,
+                ),
+              ] else ...[
+                Text(
+                  '원두 ${number(brew.dose)}g  /  1:${number(brew.ratio)}',
+                  style: const TextStyle(fontSize: 12, color: muted),
+                ),
+                BrewMetrics(
+                  water: brew.water,
+                  target: brew.target,
+                  percent: brew.percent,
+                  flow: brew.flow,
+                  holdingMeasurement: brew.active && brew.holdingMeasurement,
+                  liveWeight:
+                      !c.demo &&
+                              scale.fresh &&
+                              scale.reading?.overloaded == true
+                          ? '저울 용량 초과'
+                          : '저울 ${c.currentGrams?.toStringAsFixed(1) ?? '—'} g',
+                ),
+                const Divider(height: 20),
+                BrewTimer(
+                  seconds: brew.seconds,
+                  phase: brew.phase,
+                  reached: brew.reached,
+                ),
+                const SizedBox(height: 10),
+                BrewChart(
+                  points: brew.points,
+                  reference: c.reference,
+                  target: brew.target,
+                  seconds: brew.seconds,
+                  height: MediaQuery.sizeOf(context).width < 500 ? 155 : 190,
+                ),
+              ],
+              if (c.guide != null) ...[const SizedBox(height: 20), _guide()],
+              if (c.demo && brew.active) ...[
+                const SizedBox(height: 20),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Text(
+                      '데모',
+                      style: TextStyle(fontSize: 11, color: muted),
+                    ),
+                    if (brew.phase == BrewPhase.pouring)
+                      TextButton(
+                        onPressed: c.toggleDemoLift,
+                        child: Text(
+                          c.demoLifted ? '기구 놓기' : '기구 들기',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    TextButton(
+                      onPressed: c.demoLifted ? null : c.toggleDemoPour,
+                      child: Text(
+                        c.demoAuto
+                            ? '붓기 멈춤'
+                            : c.reference != null
+                            ? '가이드 따라 붓기'
+                            : '자동으로 붓기',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+                Slider(
+                  key: const Key('demo-water'),
+                  value: c.demoWeight.clamp(0, brew.target * 1.25),
+                  max: brew.target * 1.25,
+                  onChanged: c.demoLifted ? null : c.setDemoWeight,
+                ),
+              ],
+              if (c.notice != null || (!c.demo && scale.error != null))
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                    c.notice ?? scale.error!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.6,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _settings() => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 608),
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const Text(
+            '설정',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 28),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.bluetooth, size: 22),
+            title: const Text('저울 연결'),
+            subtitle: Text(
+              c.demo
+                  ? '데모 사용 중'
+                  : c.scale!.connected
+                  ? '연결됨'
+                  : '연결 안 됨',
+            ),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap:
+                c.demo ||
+                        c.scale!.busy ||
+                        c.starting ||
+                        c.taring ||
+                        (c.brew.active && !c.scale!.connected)
+                    ? null
+                    : _connection,
+          ),
+          const Divider(),
+          ListTile(
+            key: const Key('change-scale'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.scale_outlined, size: 22),
+            title: const Text('저울 모델'),
+            subtitle: Text(c.scale!.info.name),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: c.canChangeScale ? _selectScale : null,
+          ),
+          if (c.demoAvailable) ...[
+            const Divider(),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('데모 모드'),
+              subtitle: const Text('저울 없이 브루잉 체험'),
+              value: c.demo,
+              onChanged: c.canChangeScale ? (_) => c.toggleDemo() : null,
+            ),
+          ],
+          const Divider(),
+          const SizedBox(height: 16),
+          FutureBuilder<PackageInfo>(
+            future: _version,
+            builder:
+                (context, snapshot) => Text(
+                  snapshot.hasData
+                      ? 'Dot Pour ${snapshot.data!.version}'
+                      : 'Dot Pour',
+                  style: const TextStyle(fontSize: 12, color: muted),
+                ),
+          ),
+        ],
+      ),
+    ),
   );
 
   Widget _guide() {

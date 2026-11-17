@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-const ink = Color(0xff233e36);
-const paper = Color(0xfff7f5ef);
-const muted = Color(0xff7a8079);
-const line = Color(0xffe5e8df);
-const copper = Color(0xffb78154);
-const mint = Color(0xffe8efe6);
+const ink = Color(0xff35312e);
+const paper = Color(0xfff8f5f0);
+const muted = Color(0xff827a72);
+const line = Color(0xffe6dfd6);
+const copper = Color(0xffae5d42);
+const mint = Color(0xffeee7dd);
 
 String number(double value, [int decimals = 1]) =>
     value == value.roundToDouble()
@@ -21,6 +21,7 @@ double parseNumber(String text) =>
 
 ThemeData pourTheme() => ThemeData(
   useMaterial3: true,
+  splashFactory: InkSparkle.splashFactory,
   scaffoldBackgroundColor: paper,
   colorScheme: ColorScheme.fromSeed(
     seedColor: ink,
@@ -36,6 +37,22 @@ ThemeData pourTheme() => ThemeData(
   textTheme: const TextTheme(
     bodyMedium: TextStyle(color: ink),
     bodyLarge: TextStyle(color: ink),
+  ),
+  navigationBarTheme: NavigationBarThemeData(
+    backgroundColor: paper,
+    surfaceTintColor: Colors.transparent,
+    indicatorColor: mint,
+    height: 68,
+    labelTextStyle: WidgetStateProperty.resolveWith(
+      (states) => TextStyle(
+        fontSize: 11,
+        color: states.contains(WidgetState.selected) ? ink : muted,
+        fontWeight:
+            states.contains(WidgetState.selected)
+                ? FontWeight.w600
+                : FontWeight.w400,
+      ),
+    ),
   ),
   inputDecorationTheme: InputDecorationTheme(
     filled: true,

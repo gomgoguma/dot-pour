@@ -7,7 +7,12 @@ import 'style.dart';
 
 class RecipeLibrary extends StatelessWidget {
   final BrewController controller;
-  const RecipeLibrary({super.key, required this.controller});
+  final VoidCallback? onRecipeLoaded;
+  const RecipeLibrary({
+    super.key,
+    required this.controller,
+    this.onRecipeLoaded,
+  });
   Future<void> _edit(BuildContext context, [BrewRecipe? recipe]) =>
       Navigator.push(
         context,
@@ -27,6 +32,7 @@ class RecipeLibrary extends StatelessWidget {
     builder:
         (context, _) => Scaffold(
           appBar: AppBar(
+            automaticallyImplyLeading: onRecipeLoaded == null,
             title: const Text('내 레시피'),
             actions: [
               IconButton(
@@ -104,7 +110,11 @@ class RecipeLibrary extends StatelessWidget {
                                       ),
                                     );
                                     if (context.mounted && loaded == true) {
-                                      Navigator.pop(context);
+                                      if (onRecipeLoaded != null) {
+                                        onRecipeLoaded!();
+                                      } else {
+                                        Navigator.pop(context);
+                                      }
                                     }
                                   },
                                   child: Padding(
