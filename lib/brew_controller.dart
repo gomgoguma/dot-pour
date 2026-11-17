@@ -79,7 +79,7 @@ class BrewController extends ChangeNotifier {
     _ticker = Timer.periodic(tickInterval, (_) {
       final now = DateTime.now();
       if (!brew.active) {
-        if (demo && setup && !starting && !taring && !_needsNewTare) {
+        if (demo && setup && !starting && !taring) {
           final stable = hasSetupWeight;
           final suggested = suggestedDose;
           _dosePreparation.observe(
@@ -149,6 +149,8 @@ class BrewController extends ChangeNotifier {
 
   double? get setupDose {
     if (_confirmedDose != null) return _confirmedDose;
+    // An inferred addition needs confirmation even after an earlier tare.
+    if (suggestedDose != null) return null;
     if (_needsNewTare) return null;
     final raw = currentGrams;
     if (raw == null) return null;
@@ -173,11 +175,20 @@ class BrewController extends ChangeNotifier {
     _changed();
   }
 
-  void restartDoseSetup() {
-    if (!setup || !canChangeScale) return;
-    _dosePreparation.reset();
-    _confirmedDose = null;
-    _needsNewTare = demo || _scale?.info.capabilities.tare == true;
+  Future<void> restartDoseSetup() => _zeroPreparation(forDose: false);
+
+  bool get canEnterDoseWeighing =>
+      setup &&
+      canChangeScale &&
+      usable &&
+      !isDoseTared &&
+      _confirmedDose == null &&
+      currentGrams!.abs() <= DosePreparation.zeroTolerance;
+
+  void enterDoseWeighing() {
+    if (!canEnterDoseWeighing) return;
+    _dosePreparation.markTared();
+    _needsNewTare = false;
     notice = null;
     _changed();
   }
@@ -204,7 +215,20 @@ class BrewController extends ChangeNotifier {
         validateDose(dose) == null;
   }
 
-  Future<void> tare() async {
+  Future<void> tare() {
+    final grams = currentGrams;
+    // Capture the state before the hardware clears its current measurement.
+    // Near-zero noise should not undo an established bean-weighing phase.
+    final forDose =
+        grams != null &&
+        grams >= -DosePreparation.zeroTolerance &&
+        (isDoseTared ||
+            _confirmedDose != null ||
+            _dosePreparation.hasStablePositiveWeight);
+    return _zeroPreparation(forDose: forDose);
+  }
+
+  Future<void> _zeroPreparation({required bool forDose}) async {
     if (!canTare) return;
     notice = null;
     taring = true;
@@ -220,8 +244,14 @@ class BrewController extends ChangeNotifier {
         await _waitForZero(scale);
         if (_disposed || !scale.connected) return;
       }
-      _dosePreparation.markTared();
-      _needsNewTare = false;
+      if (forDose) {
+        _dosePreparation.markTared();
+        _needsNewTare = false;
+      } else {
+        _dosePreparation.reset();
+        _confirmedDose = null;
+        _needsNewTare = true;
+      }
     } catch (error) {
       notice = '영점을 확인하지 못했습니다. ($error)';
     } finally {
@@ -267,7 +297,7 @@ class BrewController extends ChangeNotifier {
     final newReading = scale.fresh && _lastSample != scale.lastReading;
     if (!scale.connected || !scale.measurementsReady) {
       _dosePreparation.reset();
-    } else if (setup && !starting && !taring && !_needsNewTare && newReading) {
+    } else if (setup && !starting && !taring && newReading) {
       final reading = scale.reading!;
       _dosePreparation.observe(
         reading.overloaded ? double.nan : reading.grams,

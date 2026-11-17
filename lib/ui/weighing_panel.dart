@@ -57,7 +57,6 @@ class WeighingPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final grams = c.currentGrams;
-    final dose = c.setupDose;
     final confirmed = c.confirmedDose;
     final suggested = c.suggestedDose;
     final busy = c.starting || c.taring;
@@ -81,66 +80,61 @@ class WeighingPanel extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
-          Row(
-            children: [
-              Image.asset(
-                isWeighing
-                    ? 'assets/illustrations/coffee-beans.png'
-                    : 'assets/illustrations/pour-over-setup.png',
-                key: const Key('setup-illustration'),
-                width: 64,
-                height: 64,
-                cacheHeight: 192,
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.high,
-                semanticLabel: isWeighing ? '커피 원두' : '저울 위에 놓인 서버와 드리퍼',
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    overloaded
-                        ? '용량 초과'
-                        : '${grams?.toStringAsFixed(1) ?? '0.0'} g',
+          Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                key: const Key('weighing-reading-group'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    isWeighing
+                        ? 'assets/illustrations/coffee-beans.png'
+                        : 'assets/illustrations/pour-over-setup.png',
+                    key: const Key('setup-illustration'),
+                    width: 88,
+                    height: 88,
+                    cacheHeight: 264,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    semanticLabel: isWeighing ? '커피 원두' : '저울 위에 놓인 서버와 드리퍼',
+                  ),
+                  const SizedBox(width: 16),
+                  Text.rich(
+                    TextSpan(
+                      text:
+                          overloaded
+                              ? '용량 초과'
+                              : grams?.toStringAsFixed(1) ?? '0.0',
+                      children:
+                          overloaded
+                              ? null
+                              : const [
+                                TextSpan(
+                                  text: ' g',
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    letterSpacing: 0,
+                                    color: muted,
+                                  ),
+                                ),
+                              ],
+                    ),
                     key: const Key('live-weight'),
                     semanticsLabel: grams == null ? '저울 연결 대기, 0.0 g' : null,
                     style: const TextStyle(
                       fontSize: 64,
+                      height: 1.1,
                       letterSpacing: -2,
                       fontWeight: FontWeight.w400,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (!isWeighing && c.hasSetupWeight) ...[
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: mint,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle_outline, size: 16, color: ink),
-                    SizedBox(width: 6),
-                    Text(
-                      '세팅 안정',
-                      style: TextStyle(color: ink, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
-            const SizedBox(height: 6),
-          ],
+          ),
+          const SizedBox(height: 12),
           if (suggested == null)
             Row(
               children: [
@@ -156,25 +150,24 @@ class WeighingPanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isWeighing) ...[
-                  const SizedBox(width: 8),
-                  TextButton(
-                    key: const Key('restart-scale-setup'),
-                    onPressed: c.canChangeScale ? c.restartDoseSetup : null,
-                    child: const Text('세팅 다시', style: TextStyle(fontSize: 12)),
-                  ),
-                ],
+                const SizedBox(width: 8),
+                TextButton(
+                  key: const Key('restart-scale-setup'),
+                  onPressed: c.canTare ? c.restartDoseSetup : null,
+                  child: const Text('처음부터', style: TextStyle(fontSize: 12)),
+                ),
               ],
             ),
-          if (dose != null && c.validateDose(dose) == null) ...[
-            const SizedBox(height: 8),
-            Text(
-              '원두 ${number(dose)}g · 목표 물 ${number(dose * c.brew.ratio)}g',
-              key: const Key('setup-dose-preview'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          if (c.canEnterDoseWeighing)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const Key('enter-dose-weighing'),
+                onPressed: c.enterDoseWeighing,
+                icon: const Icon(Icons.arrow_forward_rounded, size: 14),
+                label: const Text('원두 계량으로', style: TextStyle(fontSize: 12)),
+              ),
             ),
-          ],
           if (suggested != null) ...[
             const SizedBox(height: 14),
             Container(
@@ -191,10 +184,24 @@ class WeighingPanel extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 13),
                   ),
-                  TextButton(
-                    key: const Key('apply-suggested-dose'),
-                    onPressed: busy ? null : () => c.setDose(suggested),
-                    child: Text('${number(suggested)}g 적용'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
+                        key: const Key('apply-suggested-dose'),
+                        onPressed: busy ? null : () => c.setDose(suggested),
+                        child: Text('${number(suggested)}g 적용'),
+                      ),
+                      const SizedBox(width: 12),
+                      TextButton(
+                        key: const Key('restart-scale-setup'),
+                        onPressed: c.canTare ? c.restartDoseSetup : null,
+                        child: const Text(
+                          '처음부터',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

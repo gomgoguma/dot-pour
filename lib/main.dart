@@ -141,11 +141,6 @@ class _BrewScreenState extends State<BrewScreen> {
     name.dispose();
   }
 
-  Future<void> _finish() async {
-    c.finish();
-    if (c.canSave) await _save();
-  }
-
   int _page = 0;
   bool _espresso = false;
 
@@ -393,12 +388,16 @@ class _BrewScreenState extends State<BrewScreen> {
 
   Widget _brewActions() {
     final brew = c.brew;
+    final dose = c.setupDose;
+    final showConditions =
+        dose != null && c.validateDose(dose) == null && _ratioInputValid;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (c.setup)
-          FilledButton.icon(
+          FilledButton(
+            key: const Key('start-brew'),
             onPressed:
                 c.canStart && _ratioInputValid
                     ? () {
@@ -406,12 +405,42 @@ class _BrewScreenState extends State<BrewScreen> {
                       c.start();
                     }
                     : null,
-            icon: const Icon(Icons.play_arrow_rounded, size: 20),
-            label: Text(c.starting ? '영점 확인 중…' : '추출 시작'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.play_arrow_rounded, size: 20),
+                    const SizedBox(width: 8),
+                    Text(c.starting ? '영점 확인 중…' : '추출 시작'),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  c.starting
+                      ? '저울의 영점을 맞추고 있어요'
+                      : showConditions
+                      ? '원두 ${number(dose)}g · 1:${number(brew.ratio)} · 물 ${number(dose * brew.ratio)}g'
+                      : !_ratioInputValid
+                      ? '비율을 확인해 주세요'
+                      : '원두량을 확인해 주세요',
+                  key: const Key('brew-start-conditions'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
           )
         else if (brew.active)
           FilledButton.icon(
-            onPressed: _finish,
+            onPressed: c.finish,
             icon: const Icon(Icons.stop_rounded, size: 18),
             label: const Text('추출 마치기'),
           )

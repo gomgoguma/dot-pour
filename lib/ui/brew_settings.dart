@@ -2,7 +2,107 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'style.dart';
 
-const ratioPresets = <double>[9, 10, 11, 15, 16.7, 17];
+const _ratioPresetGroups = [
+  (label: 'ICE', ratios: <double>[9, 10, 11]),
+  (label: 'HOT', ratios: <double>[15, 16.7, 17]),
+];
+
+class _RatioPresets extends StatelessWidget {
+  final double selectedRatio;
+  final ValueChanged<double>? onChanged;
+
+  const _RatioPresets({required this.selectedRatio, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (var i = 0; i < _ratioPresetGroups.length; i++) ...[
+        if (i > 0) const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 8, bottom: 6),
+                child: Text(
+                  _ratioPresetGroups[i].label,
+                  style: const TextStyle(
+                    color: muted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: mint,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    children: [
+                      for (final ratio in _ratioPresetGroups[i].ratios)
+                        Expanded(
+                          child: Semantics(
+                            label:
+                                '${_ratioPresetGroups[i].label} 비율 1:${number(ratio)}',
+                            selected: selectedRatio == ratio,
+                            button: true,
+                            child: Material(
+                              color:
+                                  selectedRatio == ratio
+                                      ? ink
+                                      : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              child: InkWell(
+                                key: ValueKey('ratio-preset-${number(ratio)}'),
+                                borderRadius: BorderRadius.circular(10),
+                                onTap:
+                                    onChanged == null
+                                        ? null
+                                        : () => onChanged!(ratio),
+                                child: SizedBox(
+                                  height: 48,
+                                  child: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          number(ratio),
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color:
+                                                selectedRatio == ratio
+                                                    ? paper
+                                                    : muted,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ],
+  );
+}
 
 class DoseRatioFields extends StatelessWidget {
   final TextEditingController dose, ratio;
@@ -94,22 +194,12 @@ class DoseRatioFields extends StatelessWidget {
         const SizedBox(height: 20),
         const Text('자주 쓰는 비율', style: TextStyle(color: muted, fontSize: 12)),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children:
-              ratioPresets
-                  .map(
-                    (value) => ChoiceChip(
-                      label: Text('1:${number(value)}'),
-                      selected: parseNumber(ratio.text) == value,
-                      onSelected: (_) {
-                        ratio.text = number(value);
-                        onChanged();
-                      },
-                    ),
-                  )
-                  .toList(),
+        _RatioPresets(
+          selectedRatio: parseNumber(ratio.text),
+          onChanged: (value) {
+            ratio.text = number(value);
+            onChanged();
+          },
         ),
       ],
     );
@@ -295,57 +385,9 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
               ],
             ),
             const SizedBox(height: 14),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: mint,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  children: [
-                    for (final ratio in ratioPresets)
-                      Expanded(
-                        child: Semantics(
-                          label: '비율 1:${number(ratio)}',
-                          selected: widget.ratio == ratio,
-                          button: true,
-                          child: Material(
-                            color:
-                                widget.ratio == ratio
-                                    ? ink
-                                    : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            child: InkWell(
-                              key: ValueKey('ratio-preset-${number(ratio)}'),
-                              borderRadius: BorderRadius.circular(10),
-                              onTap:
-                                  widget.enabled ? () => _choose(ratio) : null,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                  horizontal: 2,
-                                ),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    number(ratio),
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          widget.ratio == ratio ? paper : muted,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+            _RatioPresets(
+              selectedRatio: widget.ratio,
+              onChanged: widget.enabled ? _choose : null,
             ),
             if (error != null)
               Padding(

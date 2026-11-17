@@ -1,6 +1,10 @@
 Generated with the built-in image_gen tool on 2026-11-17.
 Final asset: pour-over-setup.png, transparent background.
 
+Dark coffee bean revision, built-in image_gen, 2026-11-17
+Final asset: coffee-beans.png, transparent background.
+Prompt: Use case: precise-object-edit. Edit target: the attached coffee-beans.png UI illustration. Change ONLY the colored body fills of the two coffee beans from bright reddish terracotta to a significantly darker, low-saturation roasted coffee brown, approximately #614634. Keep the exact two-bean arrangement, silhouettes, proportions, broad charcoal #35312E outlines, ivory central curved splits, scale, square framing and generous transparent exterior unchanged. Both bean bodies must be the same solid deep coffee brown, visibly darker and less red than the input. Flat editorial icon; no gradients, shading, texture, gloss, new objects, labels, shadows or background tile. Preserve genuine alpha transparency around the beans and in all exterior gaps. This is an edit of an existing app asset, not a redesign.
+
 Bold setup revision, built-in image_gen, 2026-11-17
 Edit target: pour-over-setup.png. Supporting style reference: coffee-beans.png.
 Prompt: Redraw the server and dripper in the coffee-bean icon's minimal heavy-outline style. Preserve the recognizable conical dripper on the server with a spout and handle. Use charcoal #35312E outlines approximately three times heavier, legible at 64px tall, with rounded joins. Keep only two broad rib lines, a plain server body, simple handles and one solid scale baseline. Flat ivory #F8F5F0 fills and one terracotta #AE5D42 accent. Transparent background and handle holes. No thin details, reflections, text, shadows, textures or extra objects.

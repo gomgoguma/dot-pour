@@ -17,56 +17,71 @@ void phone(WidgetTester tester, {double width = 390}) {
 }
 
 void main() {
-  testWidgets('finish saves actual trace and library loads it for replay', (
-    tester,
-  ) async {
-    phone(tester);
-    SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
-    final prefs = await SharedPreferences.getInstance();
-    var now = Duration.zero;
-    final brew = BrewSession(now: () => now);
-    final controller = BrewController(prefs, session: brew)..demo = true;
-    await tester.pumpWidget(
-      DotPourApp(preferences: prefs, controller: controller),
-    );
-    await tester.tap(find.text('추출 시작'));
-    brew.update(1);
-    brew.update(2);
-    for (var t = 1; t <= 10; t++) {
-      now = Duration(seconds: t);
-      brew.update(t * 6, flowGramsPerSecond: 6);
-    }
-    controller.demoWeight = 60;
-    await tester.pump();
-    await tester.tap(find.text('추출 마치기'));
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('레시피 저장'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const Key('save-recipe-name')),
-      '테스트 한 잔',
-    );
-    await tester.tap(find.text('저장', skipOffstage: false));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(RecipeStore(prefs).load().single.trace.last.grams, 60);
-    expect(RecipeStore(prefs).load().single.isDemo, true);
-    expect(find.text('저장 완료'), findsOneWidget);
-    await tester.tap(find.text('새 추출'));
-    await tester.pump();
-    await tester.tap(find.text('레시피'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('테스트 한 잔'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('이 레시피로 추출'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(controller.reference?.name, '테스트 한 잔');
-    expect(find.byKey(const Key('weighing-panel')), findsOneWidget);
-    expect(controller.brew.phase, BrewPhase.setup);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
+  testWidgets(
+    'finish keeps the result until explicitly saved, then allows replay',
+    (tester) async {
+      phone(tester);
+      SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
+      final prefs = await SharedPreferences.getInstance();
+      var now = Duration.zero;
+      final brew = BrewSession(now: () => now);
+      final controller = BrewController(prefs, session: brew)..demo = true;
+      await tester.pumpWidget(
+        DotPourApp(preferences: prefs, controller: controller),
+      );
+      await tester.tap(find.text('추출 시작'));
+      brew.update(1);
+      brew.update(2);
+      for (var t = 1; t <= 10; t++) {
+        now = Duration(seconds: t);
+        brew.update(t * 6, flowGramsPerSecond: 6);
+      }
+      controller.demoWeight = 60;
+      await tester.pump();
+      await tester.tap(find.text('추출 마치기'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(brew.phase, BrewPhase.finished);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('새 추출'), findsOneWidget);
+      expect(RecipeStore(prefs).load(), isEmpty);
+      await tester.tap(find.text('레시피로 저장'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('레시피 저장'), findsOneWidget);
+      await tester.tap(find.text('나중에'));
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(brew.water, 60);
+      expect(controller.canSave, true);
+      await tester.tap(find.text('레시피로 저장'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('레시피 저장'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('save-recipe-name')),
+        '테스트 한 잔',
+      );
+      await tester.tap(find.text('저장', skipOffstage: false));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(RecipeStore(prefs).load().single.trace.last.grams, 60);
+      expect(RecipeStore(prefs).load().single.isDemo, true);
+      expect(find.text('저장 완료'), findsOneWidget);
+      await tester.tap(find.text('새 추출'));
+      await tester.pump();
+      await tester.tap(find.text('레시피'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('테스트 한 잔'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('이 레시피로 추출'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(controller.reference?.name, '테스트 한 잔');
+      expect(find.byKey(const Key('weighing-panel')), findsOneWidget);
+      expect(controller.brew.phase, BrewPhase.setup);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets(
     'manual editor converts percent to grams and rejects wrong totals',
@@ -142,10 +157,18 @@ void main() {
       await tester.tap(find.byKey(const Key('increase-ratio')));
       await tester.pump();
       expect(tester.widget<TextField>(input).controller!.text, '16.5');
-      expect(find.text('원두 20g · 목표 물 330g'), findsOneWidget);
+      expect(find.text('원두 20g · 1:16.5 · 물 330g'), findsOneWidget);
       await tester.tap(find.byKey(const Key('decrease-ratio')));
       await tester.pump();
       expect(tester.widget<TextField>(input).controller!.text, '16');
+
+      final icePreset = find.byKey(const Key('ratio-preset-10'));
+      await tester.ensureVisible(icePreset);
+      await tester.tap(icePreset);
+      await tester.pump();
+      expect(tester.widget<TextField>(input).controller!.text, '10');
+      expect(find.text('원두 20g · 1:10 · 물 200g'), findsOneWidget);
+      expect(prefs.getDouble('ratio'), 10);
 
       final preset = find.byKey(const Key('ratio-preset-17'));
       await tester.ensureVisible(preset);
@@ -153,14 +176,14 @@ void main() {
       await tester.pump();
       expect(tester.widget<TextField>(input).controller!.text, '17');
       expect(controller.brew.ratio, 17);
-      expect(find.text('원두 20g · 목표 물 340g'), findsOneWidget);
+      expect(find.text('원두 20g · 1:17 · 물 340g'), findsOneWidget);
       expect(prefs.getDouble('ratio'), 17);
 
       tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       addTearDown(tester.view.resetViewInsets);
       await tester.enterText(input, '16.7');
       await tester.pump();
-      expect(find.text('원두 20g · 목표 물 334g'), findsOneWidget);
+      expect(find.text('원두 20g · 1:16.7 · 물 334g'), findsOneWidget);
       expect(prefs.getDouble('ratio'), 16.7);
       expect(prefs.getDouble('dose'), isNull);
       expect(find.byType(BottomSheet), findsNothing);
