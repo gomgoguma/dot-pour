@@ -31,6 +31,53 @@ class PourFixture {
 }
 
 void main() {
+  test('reapplying pressure after zero does not inflate poured water', () {
+    final f = PourFixture()..reach(60);
+    f.send(0, repeats: 5);
+    expect(f.brew.water, 60);
+    for (var raw = 0.0; raw <= 60; raw += 2) {
+      f.send(raw);
+    }
+    f.send(60, repeats: 5);
+    expect(f.brew.water, 60);
+    for (var raw = 62.0; raw <= 80; raw += 2) {
+      f.send(raw);
+    }
+    f.send(80);
+    expect(f.brew.water, 80);
+  });
+
+  test(
+    'repeated moving returns preserve an established offset without adding more',
+    () {
+      for (final step in [.5, 2.0, 5.0]) {
+        final f = PourFixture()..reach(60);
+        f.send(-300, repeats: 5);
+        f.send(56, repeats: 5);
+        expect(f.brew.water, 60);
+        expect(f.brew.holdingMeasurement, false);
+        for (var cycle = 0; cycle < 3; cycle++) {
+          f.send(0, repeats: 5);
+          for (var raw = 0.0; raw <= 56; raw += step) {
+            f.send(raw);
+            expect(f.brew.water, 60);
+          }
+          f.send(56, repeats: 5);
+          expect(f.brew.water, 60);
+          expect(f.brew.holdingMeasurement, false);
+        }
+        for (var raw = 57.0; raw <= 76; raw++) {
+          f.send(raw);
+        }
+        f.send(76);
+        expect(f.brew.water, 80);
+        expect(f.brew.points.every((point) => point.grams <= 80), true);
+        f.brew.finish();
+        expect(f.brew.toRecipe('repeated return').validate(), isNull);
+      }
+    },
+  );
+
   test('a small downward wobble does not wait for the pour to stop', () {
     final f = PourFixture()..reach(100);
     f.send(103);
@@ -73,6 +120,11 @@ void main() {
     () {
       final f = PourFixture()..reach(160);
       f.send(-350, repeats: 5);
+      for (final raw in [148.0, 150.0, 152.0]) {
+        f.send(raw);
+        expect(f.brew.water, 160);
+        expect(f.brew.holdingMeasurement, true);
+      }
       f.send(154, repeats: 5);
       expect(f.brew.holdingMeasurement, false);
       expect(f.brew.water, 160);

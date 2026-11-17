@@ -80,18 +80,33 @@ class PourSignal {
         }
       }
       _recovery.add(sample);
+      // Use only the recent recovery window so a moving landing can later
+      // settle. Keep at least three samples spanning the recovery interval.
+      while (_recovery.length > 3 && at - _recovery[1].at >= recoveryTime) {
+        _recovery.removeAt(0);
+      }
       if (_recovery.length < 3 || at - _recovery.first.at < recoveryTime) {
         return null;
+      }
+      final ready = _recovery[_recovery.length - 2];
+      if (cumulative && ready.grams + _offset < _accepted.grams) {
+        var low = _recovery.first.grams;
+        var high = low;
+        for (final value in _recovery) {
+          low = math.min(low, value.grams);
+          high = math.max(high, value.grams);
+        }
+        // Crossing the lower recovery threshold is not a settled load.
+        // Rebasing on that rising edge would count the remaining return as
+        // newly poured water (e.g. 60 -> 0 -> 50 -> 60 becoming 70g).
+        if (high - low > .5) return null;
+        _offset = _accepted.grams - ready.grams;
       }
       // Keep the known poured amount if the returned load settles slightly
       // lower. Subsequent additions use this load as their reference. A zero
       // reset or a large missing mass is deliberately not rebased.
       // Publish the last reading backed by a following sample, just as in a
       // normal pour. Keep the newest pending so it is published exactly once.
-      final ready = _recovery[_recovery.length - 2];
-      if (cumulative && ready.grams + _offset < _accepted.grams) {
-        _offset = _accepted.grams - ready.grams;
-      }
       holding = false;
       _recovery.clear();
       _pending = sample;
