@@ -30,17 +30,27 @@ void main() {
       scale.emit(380);
       await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
       expect(find.text('380.0 g'), findsOneWidget);
+      final illustration = find.byKey(const Key('setup-illustration'));
+      expect(
+        tester.widget<Image>(illustration).semanticLabel,
+        '저울 위에 놓인 서버와 드리퍼',
+      );
       expect(c.canStart, false);
       await tester.tap(find.byKey(const Key('tare')));
       await tester.pump();
       expect(find.text('0.0 g'), findsOneWidget);
       expect(c.canStart, false);
       expect(find.text('원두를 담아 무게를 확인해 주세요.'), findsOneWidget);
+      expect(tester.widget<Image>(illustration).semanticLabel, '커피 원두');
       scale.emit(-380);
       await tester.pump();
       await tester.tap(find.byKey(const Key('restart-scale-setup')));
       await tester.pump();
       expect(find.text('서버와 드리퍼를 올리고\nTARE를 눌러 주세요.'), findsOneWidget);
+      expect(
+        tester.widget<Image>(illustration).semanticLabel,
+        '저울 위에 놓인 서버와 드리퍼',
+      );
       scale.emit(18);
       expect(c.canStart, false, reason: 'The former tare zero is now stale');
       await tester.tap(find.byKey(const Key('tare')));
@@ -87,6 +97,8 @@ void main() {
       ]),
     );
     await tester.pumpWidget(DotPourApp(preferences: prefs, controller: c));
+    expect(find.text('0.0 g'), findsOneWidget);
+    expect(c.canStart, false);
     final from = DateTime.now().subtract(const Duration(milliseconds: 1750));
     void send(double grams, int offset) {
       scale.lastReading = from.add(Duration(milliseconds: offset));
@@ -106,6 +118,12 @@ void main() {
     expect(c.canStart, false);
     await tester.tap(find.byKey(const Key('apply-suggested-dose')));
     await tester.pump();
+    expect(
+      tester
+          .widget<Image>(find.byKey(const Key('setup-illustration')))
+          .semanticLabel,
+      '커피 원두',
+    );
     expect(c.canStart, true);
     expect(find.text('원두 18.4g · 목표 물 294.4g'), findsOneWidget);
     await tester.tap(find.text('추출 시작'));
@@ -147,6 +165,12 @@ void main() {
       await tester.tap(find.text('원두량 적용'));
       await tester.pumpAndSettle();
       expect(find.text('원두 18g · 목표 물 288g'), findsOneWidget);
+      expect(
+        tester
+            .widget<Image>(find.byKey(const Key('setup-illustration')))
+            .semanticLabel,
+        '커피 원두',
+      );
       await tester.tap(find.text('추출 시작'));
       await tester.pump();
       expect(c.brew.dose, 18);

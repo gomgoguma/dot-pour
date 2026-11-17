@@ -81,41 +81,43 @@ class WeighingPanel extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
-          Stack(
-            alignment: Alignment.topRight,
+          Row(
             children: [
-              Center(
-                child: Image.asset(
-                  'assets/illustrations/pour-over-setup.png',
-                  height: 78,
-                  cacheHeight: 234,
-                  filterQuality: FilterQuality.high,
-                  semanticLabel: '저울 위에 놓인 서버와 드리퍼',
+              Image.asset(
+                isWeighing
+                    ? 'assets/illustrations/coffee-beans.png'
+                    : 'assets/illustrations/pour-over-setup.png',
+                key: const Key('setup-illustration'),
+                width: 64,
+                height: 64,
+                cacheHeight: 192,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+                semanticLabel: isWeighing ? '커피 원두' : '저울 위에 놓인 서버와 드리퍼',
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    overloaded
+                        ? '용량 초과'
+                        : '${grams?.toStringAsFixed(1) ?? '0.0'} g',
+                    key: const Key('live-weight'),
+                    semanticsLabel: grams == null ? '저울 연결 대기, 0.0 g' : null,
+                    style: const TextStyle(
+                      fontSize: 64,
+                      letterSpacing: -2,
+                      fontWeight: FontWeight.w400,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
                 ),
               ),
-              if (isWeighing)
-                TextButton.icon(
-                  key: const Key('restart-scale-setup'),
-                  onPressed: c.canChangeScale ? c.restartDoseSetup : null,
-                  icon: const Icon(Icons.restart_alt, size: 16),
-                  label: const Text('세팅 다시'),
-                ),
             ],
           ),
-          const SizedBox(height: 8),
-          FittedBox(
-            child: Text(
-              overloaded ? '용량 초과' : '${grams?.toStringAsFixed(1) ?? '—'} g',
-              key: const Key('live-weight'),
-              style: const TextStyle(
-                fontSize: 80,
-                letterSpacing: -2,
-                fontWeight: FontWeight.w400,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           if (!isWeighing && c.hasSetupWeight) ...[
             DecoratedBox(
               decoration: BoxDecoration(
@@ -140,16 +142,29 @@ class WeighingPanel extends StatelessWidget {
             const SizedBox(height: 6),
           ],
           if (suggested == null)
-            Text(
-              instruction,
-              key: const Key('weighing-instruction'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: ink,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.6,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    instruction,
+                    key: const Key('weighing-instruction'),
+                    style: const TextStyle(
+                      color: ink,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+                if (isWeighing) ...[
+                  const SizedBox(width: 8),
+                  TextButton(
+                    key: const Key('restart-scale-setup'),
+                    onPressed: c.canChangeScale ? c.restartDoseSetup : null,
+                    child: const Text('세팅 다시', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ],
             ),
           if (dose != null && c.validateDose(dose) == null) ...[
             const SizedBox(height: 8),

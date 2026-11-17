@@ -448,7 +448,8 @@ class _BrewScreenState extends State<BrewScreen> {
   Widget _brewing() {
     final brew = c.brew;
     final scale = c.scale!;
-    return Center(
+    return Align(
+      alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 608),
         child: SingleChildScrollView(
