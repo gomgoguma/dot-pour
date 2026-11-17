@@ -79,6 +79,22 @@ void main() {
     },
   );
 
+  test('a sustained rise outside the initial window resumes the pour', () {
+    final f = PourFixture()..reach(20);
+    f.send(165);
+    expect(f.brew.holdingMeasurement, true);
+    expect(f.brew.water, 20);
+    f.send(166);
+    expect(f.brew.water, 20);
+    for (var raw = 167.0; raw <= 171; raw++) {
+      f.send(raw);
+    }
+    f.send(171);
+    expect(f.brew.holdingMeasurement, false);
+    expect(f.brew.water, 171);
+    expect(f.brew.points.any((point) => point.breakBefore), true);
+  });
+
   test('recovery also works when notifications arrive 400ms apart', () {
     final f = PourFixture()..reach(160);
     f.send(-350);

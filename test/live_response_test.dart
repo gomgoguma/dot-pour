@@ -50,6 +50,50 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a live link survives a temporary reading gap across resume', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+    final scale = FakeScale('test', supportsTare: true);
+    var now = Duration.zero;
+    final c = BrewController(
+      await SharedPreferences.getInstance(),
+      session: BrewSession(now: () => now),
+      scaleRegistry: ScaleRegistry([
+        ScaleRegistration(scale.info, () => scale),
+      ]),
+    );
+    try {
+      scale.emit(20);
+      await c.start();
+      for (final next in [1.0, 2.0, 3.0, 3.0]) {
+        now += const Duration(milliseconds: 100);
+        scale.emit(next);
+      }
+      expect(c.brew.water, 3);
+      c.didChangeAppLifecycleState(AppLifecycleState.paused);
+      scale.lastReading = DateTime.now().subtract(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 3));
+      expect(c.brew.phase, BrewPhase.pouring);
+      c.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(c.brew.phase, BrewPhase.pouring);
+      // Update the fake's clock to produce fresh samples after the gap.
+      scale.lastReading = null;
+      for (final next in [4.0, 5.0, 5.0]) {
+        now += const Duration(milliseconds: 100);
+        scale.emit(next);
+      }
+      expect(c.brew.water, 5);
+
+      c.didChangeAppLifecycleState(AppLifecycleState.paused);
+      await scale.disconnect();
+      expect(c.brew.phase, BrewPhase.interrupted);
+    } finally {
+      c.dispose();
+    }
+  });
+
   testWidgets('diagnostics stay off until requested and fit a narrow phone', (
     tester,
   ) async {

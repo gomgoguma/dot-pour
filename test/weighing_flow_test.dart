@@ -7,7 +7,57 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'support/fake_scale.dart';
 
+class _DeferredTareScale extends FakeScale {
+  _DeferredTareScale() : super('test', supportsTare: true);
+
+  @override
+  Future<void> tare() async {
+    tares++;
+  }
+}
+
 void main() {
+  testWidgets('a restarted pour keeps the exact reading that confirmed zero', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+    final scale = _DeferredTareScale();
+    var now = Duration.zero;
+    final c = BrewController(
+      await SharedPreferences.getInstance(),
+      session: BrewSession(now: () => now),
+      scaleRegistry: ScaleRegistry([
+        ScaleRegistration(scale.info, () => scale),
+      ]),
+    );
+    await tester.pumpWidget(const SizedBox());
+    try {
+      scale.emit(20);
+      final first = c.start();
+      await tester.pump();
+      scale.emit(0);
+      await first;
+      c.finish();
+      c.reset();
+      await scale.disconnect();
+      scale.emit(20);
+      final second = c.start();
+      await tester.pump();
+      // Deliver both readings before the start continuation can run.
+      scale.emit(0);
+      scale.emit(4);
+      await second;
+      for (final next in [5.0, 6.0, 6.0]) {
+        now += const Duration(milliseconds: 100);
+        scale.emit(next);
+      }
+      expect(c.brew.phase, BrewPhase.pouring);
+      expect(c.brew.water, 6);
+    } finally {
+      c.dispose();
+    }
+  });
+
   testWidgets(
     'tare vessel, weigh beans, start zeroes and derives dose and target',
     (tester) async {

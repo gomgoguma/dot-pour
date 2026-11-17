@@ -12,12 +12,14 @@ class PourSample {
 /// load can be moving (pouring); recovery does not require a stationary plateau.
 class PourSignal {
   static const recoveryTime = Duration(milliseconds: 200);
+  static const _largeIncreaseRecoveryTime = Duration(milliseconds: 400);
   PourSample _accepted = const PourSample(Duration.zero, 0);
   PourSample _rawAccepted = const PourSample(Duration.zero, 0);
   PourSample? _pending, _previous;
   final List<PourSample> _recovery = [];
   double _offset = 0;
   bool holding = false;
+  bool _allowLargeIncrease = false;
 
   void reset(Duration at) {
     _accepted = PourSample(at, 0);
@@ -27,10 +29,12 @@ class PourSignal {
     _previous = null;
     _recovery.clear();
     holding = false;
+    _allowLargeIncrease = false;
   }
 
-  void hold() {
+  void hold({bool allowLargeIncrease = false}) {
     holding = true;
+    _allowLargeIncrease = allowLargeIncrease;
     _pending = null;
     _recovery.clear();
   }
@@ -48,10 +52,12 @@ class PourSignal {
     final sample = PourSample(at, grams);
     final previous = _previous ?? _rawAccepted;
     final dt = math.max(0.0, (at - previous.at).inMicroseconds / 1000000);
-    if (!holding &&
-        (grams < _rawAccepted.grams - 12 ||
-            grams - previous.grams > math.max(12, 60 * dt))) {
-      hold();
+    if (!holding) {
+      if (grams < _rawAccepted.grams - 12) {
+        hold();
+      } else if (grams - previous.grams > math.max(12, 60 * dt)) {
+        hold(allowLargeIncrease: true);
+      }
     }
     _previous = sample;
     if (holding) {
@@ -65,9 +71,9 @@ class PourSignal {
           _rawAccepted.grams -
           math.max(12.0, _rawAccepted.grams.abs() * .05).clamp(12.0, 25.0);
       final upper = _rawAccepted.grams + 12 + 40 * math.min(2, absentSeconds);
-      if (grams < lower ||
-          grams > upper ||
-          (_rawAccepted.grams > 5 && grams <= 2)) {
+      final lostLoad = grams < lower || (_rawAccepted.grams > 5 && grams <= 2);
+      if (lostLoad) _allowLargeIncrease = false;
+      if (lostLoad || (grams > upper && !_allowLargeIncrease)) {
         _recovery.clear();
         return null;
       }
@@ -80,7 +86,10 @@ class PourSignal {
         }
       }
       _recovery.add(sample);
-      if (_recovery.length < 3 || at - _recovery.first.at < recoveryTime) {
+      // A sustained increase can exceed the original recovery window while
+      // the load is still on the scale. Require more evidence for that jump.
+      final wait = grams > upper ? _largeIncreaseRecoveryTime : recoveryTime;
+      if (_recovery.length < 3 || at - _recovery.first.at < wait) {
         return null;
       }
       // Keep the known poured amount if the returned load settles slightly

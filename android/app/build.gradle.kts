@@ -1,9 +1,16 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val compareDefine = Base64.getEncoder().encodeToString("DOT_POUR_BLE_COMPARISON=true".toByteArray())
+val bleComparison = providers.gradleProperty("dart-defines").orNull.orEmpty()
+    .split(",")
+    .contains(compareDefine)
 
 android {
     namespace = "dev.dotpour.dot_pour"
@@ -22,6 +29,8 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "dev.dotpour.dot_pour"
+        if (bleComparison) applicationIdSuffix = ".blecompare"
+        manifestPlaceholders["dotPourLabel"] = if (bleComparison) "Dot Pour Flutter A" else "Dot Pour"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

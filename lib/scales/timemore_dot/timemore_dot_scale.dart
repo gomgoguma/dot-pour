@@ -373,6 +373,15 @@ class TimemoreDotScale extends CoffeeScale {
           !model!.toUpperCase().contains('TES017')) {
         throw StateError('지원하지 않는 저울 모델입니다: $model');
       }
+      if (Platform.isAndroid) {
+        try {
+          await manager
+              .requestMTU(device.peripheral, mtu: 247)
+              .timeout(const Duration(seconds: 3));
+        } catch (_) {
+          // DOT's normal frames also fit in the default ATT MTU.
+        }
+      }
       await manager
           .setCharacteristicNotifyState(device.peripheral, uplink, state: true)
           .timeout(const Duration(seconds: 5));
@@ -380,6 +389,15 @@ class TimemoreDotScale extends CoffeeScale {
         throw StateError('저울의 g 단위 설정을 확인하지 못했습니다.');
       }
       _gramsConfirmed = true;
+      if (Platform.isAndroid) {
+        // Beanconqueror's DOT setup selects standard weighing mode after grams.
+        // The public DOT protocol does not list this command on every firmware.
+        try {
+          await _send(3, 0x08, [0x01, 0x00]);
+        } catch (_) {
+          // Keep a working notification stream if the mode command is refused.
+        }
+      }
       connected = true;
       await _send(2, 5);
       await _send(2, 6);

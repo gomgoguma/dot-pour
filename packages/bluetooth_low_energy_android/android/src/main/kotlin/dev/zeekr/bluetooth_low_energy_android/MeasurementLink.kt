@@ -14,7 +14,8 @@ internal class MeasurementLink(
     private val dispatchDelays = ArrayDeque<Double>()
     private var lastReceiptNs: Long? = null
     private var count = 0L
-    private var streaming = false
+    var streaming = false
+        private set
     private var requestAccepted: Boolean? = null
     private var capture: DeliveryWindow? = null
     private var resumeRequests = 0

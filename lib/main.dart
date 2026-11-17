@@ -438,6 +438,20 @@ class _BrewScreenState extends State<BrewScreen> {
                     if (c.setup)
                       WeighingPanel(controller: c)
                     else ...[
+                      if (const bool.fromEnvironment('DOT_POUR_BLE_COMPARISON')) ...[
+                        Text(
+                          !scale.fresh
+                              ? '실시간 저울값 · 수신 대기'
+                              : scale.reading!.overloaded
+                              ? '실시간 저울값 · 용량 초과'
+                              : '실시간 저울값  ${scale.reading!.grams.toStringAsFixed(1)} g',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       BrewMetrics(
                         water: brew.water,
                         target: brew.target,

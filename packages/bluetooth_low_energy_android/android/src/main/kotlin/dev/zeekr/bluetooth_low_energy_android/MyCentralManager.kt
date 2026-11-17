@@ -75,7 +75,13 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     }
 
     fun resumeMeasurementLinks() {
-        if (!disposed) measurementLinks.values.forEach { it.onResume() }
+        if (disposed) return
+        measurementLinks.values.forEach { it.onResume() }
+        syncMeasurementService()
+    }
+
+    private fun syncMeasurementService() {
+        DotMeasurementService.setRequired(context, measurementLinks.values.any { it.streaming })
     }
 
     override fun dispose() {
@@ -95,6 +101,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
             try { gatt.close() } catch (_: Exception) { }
         }
         measurementLinks.clear()
+        syncMeasurementService()
         captureLinks = emptyList()
         mBluetoothGattCallback.endDeliveryCapture()
         mDevices.clear()
@@ -188,6 +195,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
             gatt.disconnect()
         }
         measurementLinks.clear()
+        syncMeasurementService()
 
         mDevices.clear()
         mGATTs.clear()
@@ -299,7 +307,10 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
     override fun disconnect(addressArgs: String, callback: (Result<Unit>) -> Unit) {
         try {
             val gatt = mGATTs[addressArgs] ?: throw IllegalArgumentException()
-            measurementLinks[addressArgs]?.setStreaming(false)
+            if (measurementLinks[addressArgs]?.streaming == true) {
+                measurementLinks[addressArgs]?.setStreaming(false)
+                syncMeasurementService()
+            }
             gatt.disconnect()
             mDisconnectCallbacks[addressArgs] = callback
         } catch (e: Throwable) {
@@ -412,6 +423,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
         }
         if (characteristic.uuid == measurementUUID) {
             measurementLink(gatt).setStreaming(enableArgs)
+            syncMeasurementService()
         }
     }
 
@@ -511,7 +523,7 @@ class MyCentralManager(context: Context, binaryMessenger: BinaryMessenger) : MyB
             return
         }
         if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-            measurementLinks.remove(addressArgs)
+            if (measurementLinks.remove(addressArgs) != null) syncMeasurementService()
             gatt.close()
             mGATTs.remove(addressArgs)
             mCharacteristics.remove(addressArgs)

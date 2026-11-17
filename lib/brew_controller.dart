@@ -33,6 +33,8 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
   bool _notifiedSinceTick = false;
   late final RecipeStore store;
   late final Timer _ticker;
+  Timer? _resumeReadingGrace;
+  bool _backgrounded = false;
   List<BrewRecipe> recipes = [];
   BrewRecipe? reference;
   String? notice;
@@ -96,7 +98,10 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
         brew.update(demoWeight);
         _targetAlert();
       } else if (!(_scale?.fresh ?? false)) {
-        interrupt('무게 데이터가 멈췄습니다. 연결을 확인하고 새 추출을 시작해 주세요.');
+        if (!_backgrounded && _resumeReadingGrace == null) {
+          interrupt('무게 데이터가 멈췄습니다. 연결을 확인하고 새 추출을 시작해 주세요.');
+        }
+        return;
       }
       brew.tick();
       if (!demo && _notifiedSinceTick) {
@@ -155,6 +160,29 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     diagnostics.mark('lifecycle_${state.name}');
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      _backgrounded = true;
+      _clearResumeReadingGrace();
+    } else if (state == AppLifecycleState.resumed && _backgrounded) {
+      _backgrounded = false;
+      final scale = _scale;
+      if (brew.active &&
+          !demo &&
+          scale != null &&
+          scale.connected &&
+          scale.measurementsReady &&
+          !scale.fresh) {
+        _resumeReadingGrace = Timer(scale.readingTimeout, () {
+          _resumeReadingGrace = null;
+        });
+      }
+    }
+  }
+
+  void _clearResumeReadingGrace() {
+    _resumeReadingGrace?.cancel();
+    _resumeReadingGrace = null;
   }
 
   PourGuide? get guide =>
@@ -239,6 +267,7 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
       }
     }
     if (newReading) {
+      _clearResumeReadingGrace();
       _lastSample = scale.lastReading;
       diagnostics.input(
         raw: scale.reading!.grams,
@@ -318,6 +347,7 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
     _changed();
     try {
       var baseline = measuredDose;
+      var baselineReadingAt = scale.lastReading;
       if (demo) {
         demoWeight = 0;
         baseline = 0;
@@ -327,7 +357,7 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
         diagnostics.mark('brew_tare_command_completed');
         if (scale.error != null) throw StateError(scale.error!);
         // The command ACK alone is not proof that the live weight has zeroed.
-        final zeroed = Completer<void>();
+        final zeroed = Completer<({double grams, DateTime at})>();
         void checkZero() {
           if (zeroed.isCompleted) return;
           if (!scale.connected) {
@@ -335,24 +365,34 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
           } else if (scale.fresh &&
               !scale.reading!.overloaded &&
               scale.reading!.grams.abs() <= 0.3) {
-            zeroed.complete();
+            zeroed.complete((
+              grams: scale.reading!.grams,
+              at: scale.lastReading!,
+            ));
           }
         }
 
         scale.addListener(checkZero);
         try {
           checkZero();
-          await zeroed.future.timeout(const Duration(seconds: 4));
+          final zero = await zeroed.future.timeout(const Duration(seconds: 4));
+          baseline = zero.grams;
+          baselineReadingAt = zero.at;
         } finally {
           scale.removeListener(checkZero);
         }
-        if (_disposed) return;
-        baseline = scale.reading!.grams;
       }
       if (_disposed) return;
+      if (!demo && !scale.fresh) {
+        throw StateError('영점 확인 후 무게 데이터를 받지 못했습니다.');
+      }
       reference = reference?.scaled(measuredDose, brew.ratio);
       brew.start(rawGrams: baseline, dose: measuredDose, ratio: brew.ratio);
       diagnostics.mark('brew_ready');
+      if (!demo && scale.lastReading != baselineReadingAt) {
+        // Another packet can arrive before the zero confirmation continuation.
+        brew.ingestScaleReading(scale.reading!);
+      }
       _lastSample = scale.lastReading;
       _lastTick = DateTime.now();
       savedId = null;
@@ -372,6 +412,7 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
     if (!brew.active) return;
     diagnostics.mark('brew_finish');
     brew.finish();
+    _clearResumeReadingGrace();
     demoAuto = false;
     _keepAwake(false);
     _changed();
@@ -379,6 +420,7 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
 
   void interrupt(String message) {
     brew.interrupt();
+    _clearResumeReadingGrace();
     demoAuto = false;
     notice = message;
     _keepAwake(false);
@@ -388,6 +430,7 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
   void reset() {
     diagnostics.mark('brew_reset');
     brew.reset();
+    _clearResumeReadingGrace();
     demoWeight = 20;
     demoAuto = false;
     savedId = null;
@@ -517,6 +560,7 @@ class BrewController extends ChangeNotifier with WidgetsBindingObserver {
       );
     }
     _ticker.cancel();
+    _clearResumeReadingGrace();
     _scale?.removeListener(_onScale);
     _scale?.dispose();
     _keepAwake(false);
