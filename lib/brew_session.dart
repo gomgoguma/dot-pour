@@ -235,7 +235,11 @@ class BrewSession {
     phase = BrewPhase.setup;
   }
 
-  BrewRecipe toRecipe(String name, {bool isDemo = false}) {
+  BrewRecipe toRecipe(
+    String name, {
+    bool isDemo = false,
+    BrewNotes notes = const BrewNotes(),
+  }) {
     if (!canSave) throw StateError('저장할 추출 기록이 없습니다.');
     final now = DateTime.now();
     return BrewRecipe(
@@ -249,6 +253,7 @@ class BrewSession {
       duration: seconds,
       createdAt: now,
       isDemo: isDemo,
+      notes: notes,
     );
   }
 }

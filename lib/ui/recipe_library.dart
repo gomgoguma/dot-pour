@@ -3,6 +3,7 @@ import '../brew_controller.dart';
 import '../recipe.dart';
 import 'brew_chart.dart';
 import 'recipe_editor.dart';
+import 'save_recipe_dialog.dart';
 import 'style.dart';
 
 class RecipeLibrary extends StatelessWidget {
@@ -315,6 +316,10 @@ class RecipeDetail extends StatelessWidget {
                       style: const TextStyle(color: muted),
                     ),
                     const SizedBox(height: 28),
+                    if (!recipe.notes.isEmpty) ...[
+                      RecipeNotesCard(notes: recipe.notes),
+                      const SizedBox(height: 24),
+                    ],
                     const SectionLabel('추출 곡선'),
                     BrewChart(
                       points: recipe.recorded ? recipe.trace : const [],

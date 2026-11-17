@@ -11,10 +11,13 @@ Future<({BrewController c, FakeScale scale})> openPour(
   WidgetTester tester, {
   double grams = 380,
   double width = 390,
+  double height = 844,
   double ratio = 16.7,
 }) async {
-  tester.view.physicalSize = Size(width, 844);
+  tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1;
+  tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+  tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({
     'scale.model': 'test',
@@ -39,23 +42,31 @@ void main() {
   testWidgets(
     'explicit steps measure the added beans without taring the equipment',
     (tester) async {
-      final (:c, :scale) = await openPour(tester);
+      final (:c, :scale) = await openPour(tester, width: 320, height: 740);
       expect(find.text('380.0 g'), findsOneWidget);
+      expect(find.byKey(const Key('tare')), findsNothing);
+      expect(find.byKey(const Key('enter-dose-weighing')), findsNothing);
       expect(c.canStart, false);
-      await tester.tap(find.byKey(const Key('enter-dose-weighing')));
+      await tester.tap(find.byKey(const Key('dose-step-beans')));
       await tester.pump();
       expect(scale.tares, 0);
       expect(c.isDoseWeighing, true);
       expect(c.setupDose, 0);
-      expect(find.text('저울 전체 380.0 g'), findsOneWidget);
+      expect(find.text('저울 전체 380.0 g'), findsNothing);
       final image = find.byKey(const Key('setup-illustration'));
       expect(tester.widget<Image>(image).semanticLabel, '커피 원두');
       scale.emit(398.5);
       await tester.pump();
       expect(find.text('18.5 g'), findsOneWidget);
-      expect(find.text('저울 전체 398.5 g'), findsOneWidget);
+      expect(find.text('저울 전체 398.5 g'), findsNothing);
       expect(c.setupDose, 18.5);
       expect(c.canStart, true);
+      expect(
+        tester.getBottomRight(find.byKey(const Key('ratio-preset-17'))).dy,
+        lessThan(tester.getTopLeft(find.byKey(const Key('start-brew'))).dy),
+        reason:
+            'Preparation and all ratio presets fit above the start action on a short phone',
+      );
       expect(find.byKey(const Key('tare')), findsNothing);
       expect(find.byKey(const Key('manual-dose')), findsOneWidget);
       expect(find.text('직접 입력'), findsNothing);
@@ -102,7 +113,12 @@ void main() {
     'tare only zeroes the scale and preserves both the stage and bean difference',
     (tester) async {
       final (:c, :scale) = await openPour(tester, width: 320, ratio: 15);
-      await tester.tap(find.byKey(const Key('tare')));
+      expect(find.byKey(const Key('tare')), findsNothing);
+      await tester.tap(find.byKey(const Key('home-mode-scale')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('basic-scale-tare')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('home-mode-pourOver')));
       await tester.pump();
       expect(c.currentGrams, 0);
       expect(c.isDoseWeighing, false);
@@ -127,7 +143,7 @@ void main() {
       expect(c.currentGrams, 0);
       expect(c.setupDose, 18);
       expect(find.text('18.0 g'), findsOneWidget);
-      expect(find.text('저울 전체 0.0 g'), findsOneWidget);
+      expect(find.text('저울 전체 0.0 g'), findsNothing);
       scale.emit(2);
       await tester.pump();
       expect(c.setupDose, 20);
@@ -139,7 +155,7 @@ void main() {
       expect(c.setupDose, isNull);
       expect(c.currentGrams, 2);
       expect(scale.tares, tares, reason: 'Step navigation never sends tare');
-      await tester.tap(find.byKey(const Key('enter-dose-weighing')));
+      await tester.tap(find.byKey(const Key('dose-step-beans')));
       await tester.pump();
       scale.emit(20);
       await tester.pump();
@@ -214,7 +230,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(c.isDoseWeighing, true);
       expect(find.text('18.0 g'), findsOneWidget);
-      expect(find.text('저울 전체 418.0 g'), findsOneWidget);
+      expect(find.text('저울 전체 418.0 g'), findsNothing);
       expect(find.text('원두 18g · 1:16 · 물 288g'), findsOneWidget);
       await tester.tap(find.text('추출 시작'));
       await tester.pump();

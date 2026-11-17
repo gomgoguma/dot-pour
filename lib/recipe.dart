@@ -61,6 +61,48 @@ class PourStep {
   );
 }
 
+class BrewNotes {
+  final String beans, memo;
+  final int acidity, sweetness, body;
+  const BrewNotes({
+    this.beans = '',
+    this.memo = '',
+    this.acidity = 0,
+    this.sweetness = 0,
+    this.body = 0,
+  });
+  bool get isEmpty =>
+      beans.isEmpty &&
+      memo.isEmpty &&
+      acidity == 0 &&
+      sweetness == 0 &&
+      body == 0;
+  String? validate() {
+    if (beans.length > 100 || memo.length > 1000) {
+      return '원두는 100자, 메모는 1,000자 이내로 입력해 주세요.';
+    }
+    if ([acidity, sweetness, body].any((n) => n < 0 || n > 5)) {
+      return '별점은 1~5점으로 선택해 주세요.';
+    }
+    return null;
+  }
+
+  Map<String, dynamic> toJson() => {
+    'beans': beans,
+    'memo': memo,
+    'acidity': acidity,
+    'sweetness': sweetness,
+    'body': body,
+  };
+  factory BrewNotes.fromJson(Map<String, dynamic> data) => BrewNotes(
+    beans: data['beans'] as String? ?? '',
+    memo: data['memo'] as String? ?? '',
+    acidity: data['acidity'] as int? ?? 0,
+    sweetness: data['sweetness'] as int? ?? 0,
+    body: data['body'] as int? ?? 0,
+  );
+}
+
 class BrewRecipe {
   final String id;
   final String name;
@@ -72,6 +114,7 @@ class BrewRecipe {
   final double duration;
   final DateTime createdAt;
   final bool isDemo;
+  final BrewNotes notes;
 
   BrewRecipe({
     required this.id,
@@ -84,6 +127,7 @@ class BrewRecipe {
     required this.duration,
     required this.createdAt,
     this.isDemo = false,
+    this.notes = const BrewNotes(),
   }) : steps = List.unmodifiable(steps),
        trace = List.unmodifiable(trace);
 
@@ -160,10 +204,13 @@ class BrewRecipe {
       duration: duration,
       createdAt: createdAt,
       isDemo: isDemo,
+      notes: notes,
     );
   }
 
   String? validate() {
+    final notesError = notes.validate();
+    if (notesError != null) return notesError;
     if (name.trim().isEmpty || name.length > 60) {
       return '레시피 이름을 1~60자로 입력해 주세요.';
     }
@@ -221,6 +268,7 @@ class BrewRecipe {
     'duration': duration,
     'createdAt': createdAt.toIso8601String(),
     'isDemo': isDemo,
+    if (!notes.isEmpty) 'notes': notes.toJson(),
   };
 
   factory BrewRecipe.fromJson(Map<String, dynamic> data) {
@@ -241,6 +289,10 @@ class BrewRecipe {
       duration: (data['duration'] as num).toDouble(),
       createdAt: DateTime.parse(data['createdAt'] as String),
       isDemo: data['isDemo'] == true,
+      notes:
+          data['notes'] == null
+              ? const BrewNotes()
+              : BrewNotes.fromJson(Map<String, dynamic>.from(data['notes'])),
     );
     final error = recipe.validate();
     if (error != null) throw FormatException(error);

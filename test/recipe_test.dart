@@ -24,6 +24,28 @@ BrewRecipe plan({PourUnit unit = PourUnit.percent, List<PourStep>? steps}) =>
     );
 
 void main() {
+  test(
+    'old recipes load without notes and taste notes survive scaling and storage',
+    () async {
+      final oldData = plan().toJson()..remove('notes');
+      expect(BrewRecipe.fromJson(oldData).notes.isEmpty, true);
+      oldData['notes'] =
+          const BrewNotes(
+            beans: '예가체프',
+            memo: '분쇄도 24',
+            acidity: 4,
+            sweetness: 5,
+            body: 3,
+          ).toJson();
+      final recipe = BrewRecipe.fromJson(oldData).scaled(18, 15);
+      SharedPreferences.setMockInitialValues({});
+      final store = RecipeStore(await SharedPreferences.getInstance());
+      await store.save([recipe]);
+      expect(store.load().single.notes.toJson(), oldData['notes']);
+      oldData['notes'] = {'acidity': 6};
+      expect(() => BrewRecipe.fromJson(oldData), throwsFormatException);
+    },
+  );
   test('percent amounts are per pour; interpolation respects pauses', () {
     final recipe = plan();
     expect(recipe.validate(), isNull);

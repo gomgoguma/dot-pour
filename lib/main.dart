@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'brew_controller.dart';
 import 'brew_session.dart';
 import 'ui/brew_chart.dart';
-import 'ui/brew_timer.dart';
 import 'ui/brew_metrics.dart';
 import 'ui/brand_mark.dart';
 import 'ui/brew_settings.dart';
@@ -16,6 +15,7 @@ import 'ui/scale_status.dart';
 import 'ui/style.dart';
 import 'ui/weighing_panel.dart';
 import 'ui/basic_scale.dart';
+import 'ui/save_recipe_dialog.dart';
 
 enum _HomeMode { scale, pourOver, espresso }
 
@@ -50,6 +50,12 @@ class _BrewScreenState extends State<BrewScreen> {
   late final _version = PackageInfo.fromPlatform();
   bool _ratioInputValid = true;
 
+  @override
+  void initState() {
+    super.initState();
+    c.setScaleMode(_mode == _HomeMode.scale);
+  }
+
   void _onRatioValidityChanged(bool valid) {
     if (mounted && _ratioInputValid != valid) {
       setState(() => _ratioInputValid = valid);
@@ -64,90 +70,18 @@ class _BrewScreenState extends State<BrewScreen> {
   );
   Future<void> _save() async {
     if (!c.canSave) return;
-    final now = DateTime.now();
-    final name = TextEditingController(text: '${now.month}월 ${now.day}일 추출');
-    String? error;
-    bool busy = false;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setDialogState) => AlertDialog(
-                  title: const Text('레시피 저장'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${number(c.brew.water)}g · ${clockText(c.brew.seconds)}${c.demo ? ' · 데모 기록' : ''}',
-                        style: const TextStyle(color: muted),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '추출 그래프와 붓기 단계를 저장합니다.',
-                        style: TextStyle(
-                          color: muted,
-                          fontSize: 12,
-                          height: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      TextField(
-                        key: const Key('save-recipe-name'),
-                        controller: name,
-                        autofocus: true,
-                        maxLength: 60,
-                        decoration: InputDecoration(
-                          labelText: '레시피 이름',
-                          errorText: error,
-                        ),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: busy ? null : () => Navigator.pop(context),
-                      child: const Text('나중에'),
-                    ),
-                    FilledButton(
-                      onPressed:
-                          busy
-                              ? null
-                              : () async {
-                                if (name.text.trim().isEmpty) {
-                                  setDialogState(() => error = '이름을 입력해 주세요.');
-                                  return;
-                                }
-                                setDialogState(() => busy = true);
-                                try {
-                                  await c.saveFinished(name.text.trim());
-                                  if (context.mounted) Navigator.pop(context);
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    setDialogState(() {
-                                      error = '$e';
-                                      busy = false;
-                                    });
-                                  }
-                                }
-                              },
-                      child: Text(busy ? '저장 중…' : '저장'),
-                    ),
-                  ],
-                ),
-          ),
+      builder: (_) => SaveRecipeDialog(controller: c),
     );
-    // Dialog route animations may still have references to its text field.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    name.dispose();
   }
 
   int _page = 0;
   late _HomeMode _mode = c.setup ? _HomeMode.scale : _HomeMode.pourOver;
 
   void _openBrewing() {
+    c.setScaleMode(false);
     setState(() {
       _page = 0;
       _mode = _HomeMode.pourOver;
@@ -175,8 +109,8 @@ class _BrewScreenState extends State<BrewScreen> {
       return Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          toolbarHeight: 64,
-          titleSpacing: 24,
+          toolbarHeight: 52,
+          titleSpacing: 20,
           scrolledUnderElevation: 0,
           title: Center(
             child: ConstrainedBox(
@@ -190,8 +124,8 @@ class _BrewScreenState extends State<BrewScreen> {
                     child: Text(
                       'dot pour',
                       style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.8,
                       ),
                     ),
@@ -215,14 +149,20 @@ class _BrewScreenState extends State<BrewScreen> {
                               ? null
                               : _connection,
                       style: TextButton.styleFrom(
-                        foregroundColor: muted,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        foregroundColor: ink,
+                        backgroundColor: mint,
+                        minimumSize: const Size(0, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: const StadiumBorder(
+                          side: BorderSide(color: line),
+                        ),
                       ),
                       icon: Icon(
                         scale.connected
                             ? Icons.bluetooth_connected
                             : Icons.bluetooth,
-                        size: 16,
+                        size: 18,
+                        color: copper,
                       ),
                       label: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -254,25 +194,23 @@ class _BrewScreenState extends State<BrewScreen> {
           bottom:
               _page == 0 && c.setup
                   ? PreferredSize(
-                    preferredSize: const Size.fromHeight(52),
+                    preferredSize: const Size.fromHeight(44),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 608),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: Row(
                             children: [
                               Expanded(
                                 child: _modeTab('Scale', _HomeMode.scale),
                               ),
-                              const SizedBox(width: 12),
                               Expanded(
                                 child: _modeTab(
                                   'Pour over',
                                   _HomeMode.pourOver,
                                 ),
                               ),
-                              const SizedBox(width: 12),
                               Expanded(
                                 child: _modeTab('Espresso', _HomeMode.espresso),
                               ),
@@ -301,7 +239,7 @@ class _BrewScreenState extends State<BrewScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 608),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 10, 24, 8),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                     child: _brewActions(),
                   ),
                 ),
@@ -344,44 +282,37 @@ class _BrewScreenState extends State<BrewScreen> {
     final selected = _mode == mode;
     return Semantics(
       selected: selected,
-      child: TextButton(
+      child: InkWell(
         key: ValueKey('home-mode-${mode.name}'),
-        onPressed:
+        onTap:
             c.brew.active || c.starting || c.taring
                 ? null
                 : () {
                   FocusScope.of(context).unfocus();
+                  c.setScaleMode(mode == _HomeMode.scale);
                   setState(() {
                     _mode = mode;
                     _ratioInputValid = true;
                   });
                 },
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          foregroundColor: selected ? ink : muted,
-          disabledForegroundColor: selected ? ink : muted,
-          shape: const RoundedRectangleBorder(),
-          side: BorderSide.none,
-        ),
-        child: Container(
-          padding: const EdgeInsets.only(bottom: 9),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 44,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: selected ? copper : Colors.transparent,
-                width: 2,
+                color: selected ? copper : line,
+                width: selected ? 2.5 : 1,
               ),
             ),
           ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 19,
-                letterSpacing: -0.5,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              color: selected ? ink : muted,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
@@ -476,6 +407,9 @@ class _BrewScreenState extends State<BrewScreen> {
               Expanded(
                 child: FilledButton(
                   onPressed: c.canSave ? _save : null,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
                   child: Text(c.savedId != null ? '저장 완료' : '레시피로 저장'),
                 ),
               ),
@@ -502,7 +436,7 @@ class _BrewScreenState extends State<BrewScreen> {
         constraints: const BoxConstraints(maxWidth: 608),
         child: SingleChildScrollView(
           key: const Key('brew-scroll'),
-          padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -529,47 +463,112 @@ class _BrewScreenState extends State<BrewScreen> {
                 ),
               if (c.setup) ...[
                 WeighingPanel(controller: c),
-                const Divider(height: 24),
+                const SizedBox(height: 12),
                 BrewRatioInput(
                   ratio: brew.ratio,
+                  target:
+                      c.setupDose == null ? null : c.setupDose! * brew.ratio,
                   enabled: !c.starting && !c.taring,
                   onChanged: c.configureRatio,
                   onValidityChanged: _onRatioValidityChanged,
                 ),
               ] else ...[
-                Text(
-                  '원두 ${number(brew.dose)}g  /  1:${number(brew.ratio)}',
-                  style: const TextStyle(fontSize: 12, color: muted),
+                SurfaceCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                _brewChip('원두 ${number(brew.dose)}g'),
+                                _brewChip('비율 1:${number(brew.ratio)}'),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            flex: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: Text(
+                                  !c.demo &&
+                                          scale.fresh &&
+                                          scale.reading?.overloaded == true
+                                      ? '저울 용량 초과'
+                                      : '저울 ${c.currentGrams?.toStringAsFixed(1) ?? '—'} g',
+                                  key: const Key('brew-live-weight'),
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(
+                                    color: muted,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w400,
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      BrewMetrics(
+                        water: brew.water,
+                        target: brew.target,
+                        percent: brew.percent,
+                        flow: brew.flow,
+                        seconds: brew.seconds,
+                        phase: brew.phase,
+                        reached: brew.reached,
+                        holdingMeasurement:
+                            brew.active && brew.holdingMeasurement,
+                      ),
+                    ],
+                  ),
                 ),
-                BrewMetrics(
-                  water: brew.water,
-                  target: brew.target,
-                  percent: brew.percent,
-                  flow: brew.flow,
-                  holdingMeasurement: brew.active && brew.holdingMeasurement,
-                  liveWeight:
-                      !c.demo &&
-                              scale.fresh &&
-                              scale.reading?.overloaded == true
-                          ? '저울 용량 초과'
-                          : '저울 ${c.currentGrams?.toStringAsFixed(1) ?? '—'} g',
-                ),
-                const Divider(height: 20),
-                BrewTimer(
-                  seconds: brew.seconds,
-                  phase: brew.phase,
-                  reached: brew.reached,
-                ),
-                const SizedBox(height: 10),
-                BrewChart(
-                  points: brew.points,
-                  reference: c.reference,
-                  target: brew.target,
-                  seconds: brew.seconds,
-                  height: MediaQuery.sizeOf(context).width < 500 ? 155 : 190,
+                const SizedBox(height: 16),
+                SurfaceCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SectionLabel(
+                        '추출 흐름',
+                        trailing: Icon(
+                          Icons.show_chart_rounded,
+                          color: copper,
+                          size: 21,
+                        ),
+                      ),
+                      BrewChart(
+                        points: brew.points,
+                        reference: c.reference,
+                        target: brew.target,
+                        seconds: brew.seconds,
+                        height:
+                            MediaQuery.sizeOf(context).height < 780
+                                ? 96
+                                : MediaQuery.sizeOf(context).height < 820
+                                ? 110
+                                : 135,
+                      ),
+                    ],
+                  ),
                 ),
               ],
-              if (c.guide != null) ...[const SizedBox(height: 20), _guide()],
+              if (!c.setup && c.guide != null) ...[
+                const SizedBox(height: 20),
+                _guide(),
+              ],
               if (c.demo && brew.active) ...[
                 const SizedBox(height: 20),
                 Wrap(
@@ -626,6 +625,18 @@ class _BrewScreenState extends State<BrewScreen> {
       ),
     );
   }
+
+  Widget _brewChip(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: mint,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(
+      text,
+      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+    ),
+  );
 
   Widget _settings() => Center(
     child: ConstrainedBox(

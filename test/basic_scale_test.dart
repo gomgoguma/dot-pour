@@ -10,10 +10,83 @@ import 'support/fake_scale.dart';
 
 void main() {
   testWidgets(
+    'automatic first pour respects mode, pause, reset, tare and disconnect',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+      final prefs = await SharedPreferences.getInstance();
+      final scale = FakeScale('test', supportsTare: true);
+      var now = Duration.zero;
+      final c = BrewController(
+        prefs,
+        allowDemo: false,
+        scaleTimer: ManualTimer(now: () => now),
+        scaleRegistry: ScaleRegistry([
+          ScaleRegistration(scale.info, () => scale),
+        ]),
+      );
+      var at = DateTime.now();
+      void send(double grams) {
+        at = at.add(const Duration(milliseconds: 100));
+        scale.lastReading = at;
+        scale.emit(grams);
+      }
+
+      void zero() {
+        for (var i = 0; i < 5; i++) {
+          send(0);
+        }
+      }
+
+      await c.setScaleAutoStart(true);
+      expect(prefs.getBool('scale.autoStart'), true);
+      c.setScaleMode(false);
+      zero();
+      send(1);
+      send(2);
+      expect(c.scaleTimer.running, false);
+      c.setScaleMode(true);
+      zero();
+      send(.7);
+      send(1.4);
+      expect(c.scaleTimer.running, true);
+      now = const Duration(seconds: 3);
+      c.toggleScaleTimer();
+      zero();
+      send(1);
+      send(2);
+      expect(c.scaleTimer.running, false);
+      expect(c.scaleTimer.elapsed.inSeconds, 3);
+      c.resetScaleTimer();
+      send(3);
+      send(4);
+      expect(c.scaleTimer.running, false);
+      await c.tare();
+      zero();
+      send(.8);
+      send(1.6);
+      expect(c.scaleTimer.running, true);
+      c.resetScaleTimer();
+      zero();
+      await scale.disconnect();
+      send(1);
+      send(2);
+      expect(c.scaleTimer.running, false);
+      await c.setScaleAutoStart(false);
+      zero();
+      send(1);
+      send(2);
+      expect(c.scaleTimer.running, false);
+      c.dispose();
+    },
+  );
+
+  testWidgets(
     'basic scale is the default; timer is manual and survives tabs, tare and navigation',
     (tester) async {
-      tester.view.physicalSize = const Size(320, 800);
+      tester.view.physicalSize = const Size(320, 740);
       tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+      tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
       addTearDown(tester.view.reset);
       SharedPreferences.setMockInitialValues({'scale.model': 'test'});
       final prefs = await SharedPreferences.getInstance();
@@ -33,6 +106,12 @@ void main() {
       expect(find.byKey(const Key('ratio-input')), findsNothing);
       expect(find.text('추출 시작'), findsNothing);
       expect(find.text('00:00.0'), findsOneWidget);
+      expect(
+        tester.getBottomRight(find.byKey(const Key('manual-timer-toggle'))).dy,
+        lessThan(tester.getTopLeft(find.byType(NavigationBar)).dy - 12),
+        reason:
+            'Both scale cards and timer controls fit above navigation without scrolling',
+      );
       scale.emit(43.2);
       await tester.pump();
       expect(find.text('43.2 g'), findsOneWidget);

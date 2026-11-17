@@ -74,7 +74,8 @@ void main() {
       controller.reset();
       await tester.pump();
       expect(find.text('Pour over'), findsOneWidget);
-      expect(find.text('TARE'), findsOneWidget);
+      expect(find.text('TARE'), findsNothing);
+      expect(find.byKey(const Key('dose-step-beans')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
@@ -112,12 +113,10 @@ void main() {
       if (g > 1) {
         expect(c.brew.water, g - 1);
         expect(
-          find.text(
-            '${(g - 1).toStringAsFixed(1)} / 320 g',
-            findRichText: true,
-          ),
+          find.text('${(g - 1).toStringAsFixed(1)} g', findRichText: true),
           findsOneWidget,
         );
+        expect(find.text('목표\n320 g'), findsOneWidget);
       }
     }
     await tester.pumpWidget(const SizedBox());

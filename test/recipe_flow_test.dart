@@ -62,11 +62,29 @@ void main() {
         find.byKey(const Key('save-recipe-name')),
         '테스트 한 잔',
       );
+      await tester.enterText(
+        find.byKey(const Key('save-recipe-beans')),
+        '에티오피아 예가체프',
+      );
+      await tester.enterText(
+        find.byKey(const Key('save-recipe-memo')),
+        '93도, 분쇄도 24. 달콤한 여운.',
+      );
+      await tester.ensureVisible(find.byKey(const Key('rating-acidity-4')));
+      await tester.tap(find.byKey(const Key('rating-acidity-4')));
+      await tester.ensureVisible(find.byKey(const Key('rating-sweetness-5')));
+      await tester.tap(find.byKey(const Key('rating-sweetness-5')));
+      await tester.ensureVisible(find.byKey(const Key('rating-body-3')));
+      await tester.tap(find.byKey(const Key('rating-body-3')));
       await tester.tap(find.text('저장', skipOffstage: false));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
       expect(RecipeStore(prefs).load().single.trace.last.grams, 60);
       expect(RecipeStore(prefs).load().single.isDemo, true);
+      final notes = RecipeStore(prefs).load().single.notes;
+      expect(notes.beans, '에티오피아 예가체프');
+      expect(notes.memo, '93도, 분쇄도 24. 달콤한 여운.');
+      expect([notes.acidity, notes.sweetness, notes.body], [4, 5, 3]);
       expect(find.text('저장 완료'), findsOneWidget);
       await tester.tap(find.text('새 추출'));
       await tester.pump();
@@ -74,6 +92,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('테스트 한 잔'));
       await tester.pumpAndSettle();
+      expect(find.text('에티오피아 예가체프'), findsOneWidget);
+      expect(find.text('93도, 분쇄도 24. 달콤한 여운.'), findsOneWidget);
       await tester.tap(find.text('이 레시피로 추출'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));

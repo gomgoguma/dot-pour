@@ -8,6 +8,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'brew_session.dart';
 import 'dose_preparation.dart';
 import 'manual_timer.dart';
+import 'scale_flow.dart';
 import 'scales/scale.dart';
 import 'scales/scale_registry.dart';
 import 'recipe.dart';
@@ -35,6 +36,12 @@ class BrewController extends ChangeNotifier {
       !(_scale?.busy ?? false);
   final BrewSession brew;
   final ManualTimer scaleTimer;
+  final _scaleFlow = ScaleFlow();
+  bool scaleAutoStart = false;
+  bool _scaleMode = true;
+  bool _scaleTimerUsed = false;
+  double _lastScaleFlow = 0;
+  double get scaleFlow => usable ? _scaleFlow.flowAt(DateTime.now()) : 0;
   final bool demoAvailable;
   bool _notifiedSinceTick = false;
   late final RecipeStore store;
@@ -62,6 +69,7 @@ class BrewController extends ChangeNotifier {
        scaleTimer = scaleTimer ?? ManualTimer(),
        scaleRegistry = scaleRegistry ?? ScaleRegistry.standard() {
     store = RecipeStore(preferences);
+    scaleAutoStart = preferences.getBool('scale.autoStart') ?? false;
     final dose = preferences.getDouble('dose') ?? 20;
     final ratio = preferences.getDouble('ratio') ?? 16;
     if (BrewSession.validate(dose, ratio) == null) {
@@ -84,7 +92,12 @@ class BrewController extends ChangeNotifier {
     _ticker = Timer.periodic(tickInterval, (_) {
       final now = DateTime.now();
       if (!brew.active) {
-        if (this.scaleTimer.running) _changed();
+        if (demo && setup && !starting && !taring) {
+          _observeScaleFlow(demoWeight, now);
+        }
+        final flow = scaleFlow;
+        if (this.scaleTimer.running || flow != _lastScaleFlow) _changed();
+        _lastScaleFlow = flow;
         if (demo && setup && !isDoseWeighing && !starting && !taring) {
           final stable = hasSetupWeight;
           final suggested = suggestedDose;
@@ -135,7 +148,39 @@ class BrewController extends ChangeNotifier {
     });
   }
   bool get setup => brew.phase == BrewPhase.setup;
+  void setScaleMode(bool enabled) {
+    if (_scaleMode == enabled) return;
+    _scaleMode = enabled;
+    _scaleFlow.reset();
+  }
+
+  Future<void> setScaleAutoStart(bool enabled) async {
+    scaleAutoStart = enabled;
+    _scaleFlow.reset();
+    _changed();
+    if (!await preferences.setBool('scale.autoStart', enabled)) {
+      notice = '자동 감지 설정을 저장하지 못했습니다.';
+      _changed();
+    }
+  }
+
+  void _observeScaleFlow(double grams, DateTime at) {
+    final poured = _scaleFlow.observe(grams, at);
+    if (poured &&
+        scaleAutoStart &&
+        _scaleMode &&
+        setup &&
+        !starting &&
+        !taring &&
+        !_scaleTimerUsed &&
+        !scaleTimer.running) {
+      _scaleTimerUsed = true;
+      scaleTimer.start();
+    }
+  }
+
   void toggleScaleTimer() {
+    _scaleTimerUsed = true;
     if (scaleTimer.running) {
       scaleTimer.pause();
     } else {
@@ -146,6 +191,8 @@ class BrewController extends ChangeNotifier {
 
   void resetScaleTimer() {
     scaleTimer.reset();
+    _scaleTimerUsed = false;
+    _scaleFlow.reset();
     _changed();
   }
 
@@ -248,6 +295,7 @@ class BrewController extends ChangeNotifier {
     final baseline = _doseBaseline;
     notice = null;
     taring = true;
+    _scaleFlow.reset();
     _changed();
     try {
       var zero = 0.0;
@@ -314,6 +362,7 @@ class BrewController extends ChangeNotifier {
     if (scale == null) return;
     final newReading = scale.fresh && _lastSample != scale.lastReading;
     if (!scale.connected || !scale.measurementsReady) {
+      _scaleFlow.reset();
       _dosePreparation.reset();
       _doseBaseline = null;
     } else if (setup && !isDoseWeighing && !starting && !taring && newReading) {
@@ -323,6 +372,16 @@ class BrewController extends ChangeNotifier {
         scale.lastReading!,
         maxGap: scale.readingTimeout,
       );
+    }
+    if (newReading && scale.connected && scale.measurementsReady) {
+      if (starting || taring) {
+        _scaleFlow.reset();
+      } else {
+        _observeScaleFlow(
+          scale.reading!.overloaded ? double.nan : scale.reading!.grams,
+          scale.lastReading!,
+        );
+      }
     }
     if (brew.active) {
       if (!scale.connected || !scale.measurementsReady) {
@@ -464,6 +523,7 @@ class BrewController extends ChangeNotifier {
 
   void reset() {
     brew.reset();
+    _scaleFlow.reset();
     _dosePreparation.reset();
     _confirmedDose = null;
     _weighingDose = false;
@@ -500,6 +560,9 @@ class BrewController extends ChangeNotifier {
   void setDemoWeight(double value) {
     demoAuto = false;
     demoWeight = value;
+    if (setup && !starting && !taring) {
+      _observeScaleFlow(value, DateTime.now());
+    }
     _changed();
   }
 
@@ -550,6 +613,7 @@ class BrewController extends ChangeNotifier {
       _doseBaseline = null;
       _confirmedDose = null;
       _lastSample = null;
+      _scaleFlow.reset();
       notice = null;
     } finally {
       next?.dispose();
@@ -572,9 +636,12 @@ class BrewController extends ChangeNotifier {
     }
   }
 
-  Future<void> saveFinished(String name) async {
+  Future<void> saveFinished(
+    String name, {
+    BrewNotes notes = const BrewNotes(),
+  }) async {
     if (!canSave) throw StateError('저장할 새 추출 기록이 없습니다.');
-    final recipe = brew.toRecipe(name, isDemo: demo);
+    final recipe = brew.toRecipe(name, isDemo: demo, notes: notes);
     await upsertRecipe(recipe);
     savedId = recipe.id;
     _changed();

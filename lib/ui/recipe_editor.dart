@@ -97,6 +97,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
       steps: _rows.map((r) => r.step).toList(),
       duration: parseNumber(_duration.text),
       createdAt: widget.initial?.createdAt ?? now,
+      notes: widget.initial?.notes ?? const BrewNotes(),
     );
   }
 

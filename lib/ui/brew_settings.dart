@@ -18,83 +18,37 @@ class _RatioPresets extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       for (var i = 0; i < _ratioPresetGroups.length; i++) ...[
-        if (i > 0) const SizedBox(width: 12),
+        if (i > 0) const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8, bottom: 6),
-                child: Text(
-                  _ratioPresetGroups[i].label,
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.4,
-                  ),
+              Text(
+                _ratioPresetGroups[i].label,
+                style: const TextStyle(
+                  color: muted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
                 ),
               ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: mint,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Row(
-                    children: [
-                      for (final ratio in _ratioPresetGroups[i].ratios)
-                        Expanded(
-                          child: Semantics(
-                            label:
-                                '${_ratioPresetGroups[i].label} 비율 1:${number(ratio)}',
-                            selected: selectedRatio == ratio,
-                            button: true,
-                            child: Material(
-                              color:
-                                  selectedRatio == ratio
-                                      ? ink
-                                      : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                              child: InkWell(
-                                key: ValueKey('ratio-preset-${number(ratio)}'),
-                                borderRadius: BorderRadius.circular(10),
-                                onTap:
-                                    onChanged == null
-                                        ? null
-                                        : () => onChanged!(ratio),
-                                child: SizedBox(
-                                  height: 48,
-                                  child: Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 2,
-                                      ),
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          number(ratio),
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                            color:
-                                                selectedRatio == ratio
-                                                    ? paper
-                                                    : muted,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  for (
+                    var j = 0;
+                    j < _ratioPresetGroups[i].ratios.length;
+                    j++
+                  ) ...[
+                    if (j > 0) const SizedBox(width: 5),
+                    Expanded(
+                      child: _preset(
+                        _ratioPresetGroups[i].ratios[j],
+                        _ratioPresetGroups[i].label,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -102,6 +56,48 @@ class _RatioPresets extends StatelessWidget {
       ],
     ],
   );
+
+  Widget _preset(double ratio, String group) {
+    final selected = selectedRatio == ratio;
+    return Semantics(
+      label: '$group 비율 1:${number(ratio)}',
+      selected: selected,
+      button: true,
+      child: Material(
+        color: selected ? ink : Colors.white,
+        elevation: selected ? 1 : 0,
+        shadowColor: const Color(0x20211f1c),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: selected ? ink : line),
+        ),
+        child: InkWell(
+          key: ValueKey('ratio-preset-${number(ratio)}'),
+          borderRadius: BorderRadius.circular(12),
+          onTap: onChanged == null ? null : () => onChanged!(ratio),
+          child: SizedBox(
+            height: 40,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    number(ratio),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? Colors.white : ink,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class DoseRatioFields extends StatelessWidget {
@@ -208,6 +204,7 @@ class DoseRatioFields extends StatelessWidget {
 
 class BrewRatioInput extends StatefulWidget {
   final double ratio;
+  final double? target;
   final bool enabled;
   final Future<void> Function(double) onChanged;
   final ValueChanged<bool> onValidityChanged;
@@ -215,6 +212,7 @@ class BrewRatioInput extends StatefulWidget {
   const BrewRatioInput({
     super.key,
     required this.ratio,
+    this.target,
     required this.enabled,
     required this.onChanged,
     required this.onValidityChanged,
@@ -316,8 +314,8 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
   @override
   Widget build(BuildContext context) {
     final error = _valid ? _saveError : '비율은 1:1~1:30으로 입력해 주세요.';
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+    return SurfaceCard(
+      padding: const EdgeInsets.all(14),
       child: TextFieldTapRegion(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -325,66 +323,112 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
             Row(
               children: [
                 const Expanded(
-                  child: Text('원두 : 물', style: TextStyle(fontSize: 13)),
-                ),
-                IconButton(
-                  key: const Key('decrease-ratio'),
-                  tooltip: '비율 0.5 줄이기',
-                  onPressed:
-                      widget.enabled && widget.ratio > _minimum
-                          ? () => _adjust(-_step)
-                          : null,
-                  icon: const Icon(Icons.remove, size: 17),
-                ),
-                const Text('1 :', style: TextStyle(fontSize: 23, color: muted)),
-                const SizedBox(width: 6),
-                SizedBox(
-                  width: 66,
-                  child: TextField(
-                    key: const Key('ratio-input'),
-                    controller: _input,
-                    focusNode: _focus,
-                    enabled: widget.enabled,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    textInputAction: TextInputAction.done,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 27,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      filled: false,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
-                      border: UnderlineInputBorder(
-                        borderSide: BorderSide(color: line),
-                      ),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: line),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: copper),
-                      ),
-                    ),
-                    onChanged: _edit,
-                    onSubmitted: (_) => _focus.unfocus(),
-                    onTapOutside: (_) => _focus.unfocus(),
+                  child: Text(
+                    '추출 비율',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                 ),
-                IconButton(
-                  key: const Key('increase-ratio'),
-                  tooltip: '비율 0.5 늘리기',
-                  onPressed:
-                      widget.enabled && widget.ratio < _maximum
-                          ? () => _adjust(_step)
-                          : null,
-                  icon: const Icon(Icons.add, size: 17),
+                Text(
+                  widget.target == null
+                      ? '목표 —'
+                      : '목표 ${number(widget.target!)}g',
+                  style: TextStyle(
+                    color: widget.target == null ? muted : copperText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton.outlined(
+                    key: const Key('decrease-ratio'),
+                    style: circleControlStyle(),
+                    tooltip: '비율 0.5 줄이기',
+                    onPressed:
+                        widget.enabled && widget.ratio > _minimum
+                            ? () => _adjust(-_step)
+                            : null,
+                    icon: const Icon(Icons.remove, size: 19),
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              '1 :',
+                              style: TextStyle(
+                                fontSize: 22,
+                                color: muted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            SizedBox(
+                              width: 68,
+                              child: TextField(
+                                key: const Key('ratio-input'),
+                                controller: _input,
+                                focusNode: _focus,
+                                enabled: widget.enabled,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                textInputAction: TextInputAction.done,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -.8,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  filled: false,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                                onChanged: _edit,
+                                onSubmitted: (_) => _focus.unfocus(),
+                                onTapOutside: (_) => _focus.unfocus(),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Text(
+                          '원두 : 물',
+                          style: TextStyle(fontSize: 10, color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton.outlined(
+                    key: const Key('increase-ratio'),
+                    style: circleControlStyle(),
+                    tooltip: '비율 0.5 늘리기',
+                    onPressed:
+                        widget.enabled && widget.ratio < _maximum
+                            ? () => _adjust(_step)
+                            : null,
+                    icon: const Icon(Icons.add, size: 19),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 24),
             _RatioPresets(
               selectedRatio: widget.ratio,
               onChanged: widget.enabled ? _choose : null,
