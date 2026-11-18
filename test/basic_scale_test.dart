@@ -113,6 +113,13 @@ void main() {
       expect(find.text('추출 시작'), findsNothing);
       expect(find.text('00:00.0'), findsOneWidget);
       expect(
+        tester.getTopRight(find.byKey(const Key('scale-auto-start'))).dx,
+        closeTo(
+          tester.getTopRight(find.byKey(const Key('manual-timer-toggle'))).dx,
+          0.5,
+        ),
+      );
+      expect(
         tester.getBottomRight(find.byKey(const Key('manual-timer-toggle'))).dy,
         lessThan(tester.getTopLeft(find.byType(NavigationBar)).dy - 12),
         reason:
