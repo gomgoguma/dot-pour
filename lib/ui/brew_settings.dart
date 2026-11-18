@@ -30,7 +30,7 @@ class _RatioPresets extends StatelessWidget {
                 style: const TextStyle(
                   color: muted,
                   fontSize: 10,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 1,
                 ),
               ),
