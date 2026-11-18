@@ -273,7 +273,7 @@ class RecipeDetail extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
               child: FilledButton.icon(
                 onPressed:
-                    controller.brew.active
+                    controller.brewingActive
                         ? null
                         : () async {
                           try {
@@ -289,7 +289,7 @@ class RecipeDetail extends StatelessWidget {
                         },
                 icon: const Icon(Icons.play_arrow_rounded),
                 label: Text(
-                  controller.brew.active
+                  controller.brewingActive
                       ? context.l10n.finishActiveBrew
                       : context.l10n.brewThisRecipe,
                 ),

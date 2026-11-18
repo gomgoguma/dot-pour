@@ -658,5 +658,49 @@
   "languageSaveError": "Could not save your language. Try again.",
   "scaleTab": "Scale",
   "pourOverTab": "Pour over",
-  "espressoTab": "Espresso"
+  "espressoTab": "Espresso",
+  "espressoYield": "Yield",
+  "espressoCup": "Shot cup",
+  "espressoCupHint": "Remove the dosing vessel and place your cup on the scale. Starting will tare the cup.",
+  "espressoArm": "Wait for first drops",
+  "espressoManualStart": "Start manually",
+  "espressoVessels": "Saved vessels",
+  "espressoWeighWith": "Weigh with",
+  "espressoDirectWeigh": "Weigh without a saved vessel",
+  "espressoPlaceBeans": "Add the coffee to the tared container.",
+  "espressoPlaceLoaded": "Place the vessel with coffee on the scale.",
+  "espressoTareEmpty": "Remove everything from the scale and tap TARE.",
+  "espressoTareDirect": "Place an empty container on the scale and tap TARE.",
+  "espressoUseDose": "Use {weight} g",
+  "@espressoUseDose": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      }
+    }
+  },
+  "espressoPortafilter": "Portafilter",
+  "espressoDosingCup": "Dosing cup",
+  "espressoRegister": "Register an empty vessel",
+  "espressoVesselName": "Vessel name",
+  "espressoPlaceEmpty": "Place the empty vessel on the scale. Include any basket or ring you usually use.",
+  "espressoSaveVessel": "Save {weight} g",
+  "@espressoSaveVessel": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      }
+    }
+  },
+  "espressoChartDescription": "Espresso chart. Time, yield and flow rate. At {seconds} s, {weight} g.",
+  "@espressoChartDescription": {
+    "placeholders": {
+      "seconds": {
+        "type": "Object"
+      },
+      "weight": {
+        "type": "Object"
+      }
+    }
+  }
 }

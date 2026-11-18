@@ -5,12 +5,15 @@ import '../l10n/language.dart';
 import '../recipe.dart';
 import 'style.dart';
 
+const espressoFlowBlue = Color(0xff4c697a);
+
 class BrewChart extends StatelessWidget {
   final List<BrewPoint> points;
   final BrewRecipe? reference;
   final double target;
   final double seconds;
   final double height;
+  final bool showFlow;
   const BrewChart({
     super.key,
     required this.points,
@@ -18,10 +21,13 @@ class BrewChart extends StatelessWidget {
     required this.target,
     this.seconds = 0,
     this.height = 212,
+    this.showFlow = false,
   });
   @override
   Widget build(BuildContext context) => Semantics(
-    label: context.l10n.chartDescription(
+    label: (showFlow
+        ? context.l10n.espressoChartDescription
+        : context.l10n.chartDescription)(
       seconds.toStringAsFixed(0),
       points.isEmpty ? 0 : points.last.grams.toStringAsFixed(1),
     ),
@@ -38,6 +44,7 @@ class BrewChart extends StatelessWidget {
               seconds,
               reference?.duration ?? 0,
               context.l10n.time,
+              showFlow,
               Theme.of(
                 context,
               ).textTheme.bodySmall!.copyWith(fontSize: 10, color: muted),
@@ -51,9 +58,22 @@ class BrewChart extends StatelessWidget {
             const Icon(Icons.horizontal_rule, color: ink, size: 20),
             const SizedBox(width: 5),
             Text(
-              context.l10n.currentBrew,
+              showFlow ? context.l10n.espressoYield : context.l10n.currentBrew,
               style: TextStyle(color: muted, fontSize: 11),
             ),
+            if (showFlow) ...[
+              const SizedBox(width: 16),
+              const Icon(
+                Icons.horizontal_rule,
+                color: espressoFlowBlue,
+                size: 20,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                context.l10n.flowPrefix.trim(),
+                style: const TextStyle(color: espressoFlowBlue, fontSize: 11),
+              ),
+            ],
             if (reference != null) ...[
               const SizedBox(width: 20),
               const Row(
@@ -90,6 +110,7 @@ class _ChartPainter extends CustomPainter {
   final double target, seconds, duration;
   final TextStyle labelStyle;
   final String timeLabel;
+  final bool showFlow;
   _ChartPainter(
     this.points,
     this.reference,
@@ -97,14 +118,35 @@ class _ChartPainter extends CustomPainter {
     this.seconds,
     this.duration,
     this.timeLabel,
+    this.showFlow,
     this.labelStyle,
   );
   @override
   void paint(Canvas canvas, Size size) {
-    final bounds = Rect.fromLTRB(40, 18, size.width - 12, size.height - 28);
+    final bounds = Rect.fromLTRB(
+      showFlow ? 32 : 40,
+      18,
+      size.width - (showFlow ? 35 : 12),
+      size.height - 28,
+    );
     if (bounds.width <= 0 || bounds.height <= 0) return;
-    final requiredTime = math.max(60, math.max(duration, seconds * 1.08));
-    const timeSteps = <double>[15, 30, 45, 60, 90, 120, 180, 300, 600, 900];
+    final requiredTime = math.max(
+      showFlow ? 40 : 60,
+      math.max(duration, seconds * 1.08),
+    );
+    final timeSteps = <double>[
+      if (showFlow) 10,
+      15,
+      30,
+      45,
+      60,
+      90,
+      120,
+      180,
+      300,
+      600,
+      900,
+    ];
     final tick = timeSteps.firstWhere(
       (step) => step * 4 >= requiredTime,
       orElse: () => (requiredTime / 240).ceil() * 60.0,
@@ -114,7 +156,16 @@ class _ChartPainter extends CustomPainter {
       ...points,
       ...reference,
     ].fold(target, (double value, p) => math.max(value, p.grams));
-    final maxMass = (math.max(50, peak * 1.12) / 50).ceil() * 50.0;
+    final maxMass =
+        showFlow
+            ? (math.max(40, peak * 1.12) / 20).ceil() * 20.0
+            : (math.max(50, peak * 1.12) / 50).ceil() * 50.0;
+    final maxFlow =
+        showFlow
+            ? (points.fold(4.0, (peak, p) => math.max(peak, p.flow * 1.12)) / 4)
+                    .ceil() *
+                4.0
+            : 0.0;
     Offset location(BrewPoint p) => Offset(
       bounds.left + p.seconds / maxTime * bounds.width,
       bounds.bottom - p.grams / maxMass * bounds.height,
@@ -131,9 +182,12 @@ class _ChartPainter extends CustomPainter {
       return path;
     }
 
-    void text(String value, Offset offset, {bool right = false}) {
+    void text(String value, Offset offset, {bool right = false, Color? color}) {
       final painter = TextPainter(
-        text: TextSpan(text: value, style: labelStyle),
+        text: TextSpan(
+          text: value,
+          style: color == null ? labelStyle : labelStyle.copyWith(color: color),
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
       painter.paint(
@@ -156,9 +210,25 @@ class _ChartPainter extends CustomPainter {
       );
       final x = bounds.left + bounds.width * i / 4;
       text(clockText(maxTime * i / 4), Offset(x - 12, bounds.bottom + 9));
+      if (showFlow) {
+        text(
+          (maxFlow * i / 4).toStringAsFixed(0),
+          Offset(bounds.right + 7, y - 6),
+          color: espressoFlowBlue,
+        );
+      }
     }
     text('g', const Offset(20, 0));
-    text(timeLabel, Offset(bounds.right, 0), right: true);
+    if (showFlow) {
+      text(
+        'g/s',
+        Offset(size.width - 4, 0),
+        right: true,
+        color: espressoFlowBlue,
+      );
+    } else {
+      text(timeLabel, Offset(bounds.right, 0), right: true);
+    }
     canvas.save();
     canvas.clipRect(bounds);
     if (reference.isNotEmpty) {
@@ -201,6 +271,26 @@ class _ChartPainter extends CustomPainter {
           ..style = PaintingStyle.stroke,
       );
       canvas.drawCircle(last, 4, Paint()..color = ink);
+      if (showFlow) {
+        final flowPath = Path();
+        for (final (index, point) in points.indexed) {
+          final x = location(point).dx;
+          final y = bounds.bottom - (point.flow / maxFlow) * bounds.height;
+          if (index == 0) {
+            flowPath.moveTo(x, y);
+          } else {
+            flowPath.lineTo(x, y);
+          }
+        }
+        canvas.drawPath(
+          flowPath,
+          Paint()
+            ..color = espressoFlowBlue
+            ..strokeWidth = 2
+            ..strokeJoin = StrokeJoin.round
+            ..style = PaintingStyle.stroke,
+        );
+      }
     }
     if (seconds > 0) {
       final x = bounds.left + seconds / maxTime * bounds.width;
@@ -221,5 +311,6 @@ class _ChartPainter extends CustomPainter {
       seconds != oldDelegate.seconds ||
       duration != oldDelegate.duration ||
       timeLabel != oldDelegate.timeLabel ||
+      showFlow != oldDelegate.showFlow ||
       labelStyle != oldDelegate.labelStyle;
 }

@@ -42,7 +42,7 @@ The clock keeps running if you lift the server or swirl the dripper. If there is
 
 ### Navigation and Windows demo
 
-The **Scale**, **Pour over**, and **Espresso** tabs return when you prepare a new brew. **Espresso** currently shows a placeholder screen. The bottom navigation opens **Brewing**, **Recipes**, or **Settings**. An active brew continues recording as you navigate.
+The **Scale**, **Pour over**, and **Espresso** tabs return when you prepare a new brew. The bottom navigation opens **Brewing**, **Recipes**, or **Settings**. An active brew continues recording as you navigate.
 
 On Windows, use **Try without a scale** to adjust the simulated weight with a slider or run an automatic pour. During a brew, **Lift equipment** and **Set equipment down** simulate a pause in tracking and its recovery. If a recipe is loaded, use **Follow recipe** to simulate its pours. Demo records are labeled as such.
 
@@ -53,6 +53,13 @@ The interface uses a cream background, white cards with warm-gray borders and su
 Compact spacing keeps the main Scale and preparation controls visible on a 320 × 740 screen. Scale mode uses smaller weight and timer readouts and centers the flow rate under the weight. The brew screen shows poured water in large type, the target in gray to its right, and flow rate underneath. The graph appears once brewing starts.
 
 The ratio control centers **− / 1 : ratio / +**, uses outlined circular buttons, and separates the control from its presets with a divider. Brewing and the recipe editor group the presets under **ICE** (1:9, 1:10, 1:11) and **HOT** (1:15, 1:16.7, 1:17). Each preset has its own outline, with a charcoal fill for the selected preset.
+
+## Espresso mode
+
+1. Enter your dose manually, or weigh it in the espresso tab. To use a saved portafilter or dosing cup, register it empty first. Include the basket and any dosing ring you use when weighing coffee.
+2. Select the saved vessel, tare the bare scale, and place the loaded vessel on it. Dot Pour subtracts the saved empty weight. Tap the displayed dose to confirm it. You can also tare an empty container and weigh the coffee directly.
+3. Remove the dosing vessel and place the shot cup on the scale. Choose automatic or manual start. Both tare the cup. Automatic start waits for two consecutive readings at least 0.2 g above zero.
+4. The chart shows yield in grams and flow in grams per second on the same time axis. The shot finishes after a pour lasting at least five seconds is followed by four seconds without a meaningful increase. You can finish manually at any time.
 
 ## Recipes
 
@@ -66,7 +73,7 @@ The ratio control centers **− / 1 : ratio / +**, uses outlined circular button
 
 ## Versioning
 
-The current version is **0.8.0+38**. Releases with new capabilities, such as in-app language selection, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
+The espresso preview version is **0.9.0+39**. Releases with new capabilities, such as espresso mode, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
 
 ## Development setup
 

@@ -42,7 +42,7 @@ void main() {
       controller.setDose(18);
       await tester.tap(find.text('Espresso'));
       await tester.pumpAndSettle();
-      expect(find.text('준비 중'), findsOneWidget);
+      expect(find.byKey(const Key('espresso-panel')), findsOneWidget);
       expect(find.text('추출 시작'), findsNothing);
       await tester.tap(find.text('Pour over'));
       await tester.pumpAndSettle();

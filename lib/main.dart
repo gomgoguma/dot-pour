@@ -11,6 +11,7 @@ import 'ui/brew_metrics.dart';
 import 'ui/brand_mark.dart';
 import 'ui/brew_settings.dart';
 import 'ui/device_picker.dart';
+import 'ui/espresso_panel.dart';
 import 'ui/recipe_library.dart';
 import 'ui/scale_selection.dart';
 import 'ui/scale_status.dart';
@@ -144,6 +145,7 @@ class _BrewScreenState extends State<BrewScreen> {
   late _HomeMode _mode = c.setup ? _HomeMode.scale : _HomeMode.pourOver;
 
   void _openBrewing() {
+    if (_mode == _HomeMode.espresso) c.clearEspressoWeighing();
     c.setScaleMode(false);
     setState(() {
       _page = 0;
@@ -208,7 +210,7 @@ class _BrewScreenState extends State<BrewScreen> {
                           scale.busy ||
                                   c.starting ||
                                   c.taring ||
-                                  (c.brew.active && !scale.connected)
+                                  (c.brewingActive && !scale.connected)
                               ? null
                               : _connection,
                       style: TextButton.styleFrom(
@@ -259,7 +261,7 @@ class _BrewScreenState extends State<BrewScreen> {
             ),
           ),
           bottom:
-              _page == 0 && c.setup
+              _page == 0 && c.setup && !c.espresso.active
                   ? PreferredSize(
                     preferredSize: const Size.fromHeight(44),
                     child: Center(
@@ -301,19 +303,22 @@ class _BrewScreenState extends State<BrewScreen> {
           _ => switch (_mode) {
             _HomeMode.scale => BasicScale(controller: c),
             _HomeMode.pourOver => _brewing(),
-            _HomeMode.espresso => _espressoPlaceholder(),
+            _HomeMode.espresso => EspressoPanel(controller: c),
           },
         },
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_page == 0 && _mode == _HomeMode.pourOver)
+            if (_page == 0 && _mode != _HomeMode.scale)
               Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 608),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                    child: _brewActions(),
+                    child:
+                        _mode == _HomeMode.espresso
+                            ? EspressoActions(controller: c)
+                            : _brewActions(),
                   ),
                 ),
               ),
@@ -358,10 +363,13 @@ class _BrewScreenState extends State<BrewScreen> {
       child: InkWell(
         key: ValueKey('home-mode-${mode.name}'),
         onTap:
-            c.brew.active || c.starting || c.taring
+            c.brewingActive || c.starting || c.taring
                 ? null
                 : () {
                   FocusScope.of(context).unfocus();
+                  if (_mode == _HomeMode.espresso && mode != _mode) {
+                    c.clearEspressoWeighing();
+                  }
                   c.setScaleMode(mode == _HomeMode.scale);
                   setState(() {
                     _mode = mode;
@@ -392,25 +400,6 @@ class _BrewScreenState extends State<BrewScreen> {
       ),
     );
   }
-
-  Widget _espressoPlaceholder() => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.local_cafe_outlined, size: 40, color: copper),
-        SizedBox(height: 20),
-        Text(
-          context.l10n.espressoTab,
-          style: TextStyle(fontSize: 27, fontWeight: FontWeight.w500),
-        ),
-        SizedBox(height: 8),
-        Text(
-          context.l10n.comingSoon,
-          style: TextStyle(color: muted, fontSize: 13),
-        ),
-      ],
-    ),
-  );
 
   Widget _brewActions() {
     final brew = c.brew;
@@ -763,7 +752,7 @@ class _BrewScreenState extends State<BrewScreen> {
                         c.scale!.busy ||
                         c.starting ||
                         c.taring ||
-                        (c.brew.active && !c.scale!.connected)
+                        (c.brewingActive && !c.scale!.connected)
                     ? null
                     : _connection,
           ),

@@ -83,7 +83,7 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
               const SizedBox(height: 24),
               OutlinedButton(
                 onPressed:
-                    c.brew.active ||
+                    c.brewingActive ||
                             c.starting ||
                             c.taring ||
                             scale.busy ||
