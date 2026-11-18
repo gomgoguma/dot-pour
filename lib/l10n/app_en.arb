@@ -668,6 +668,7 @@
   "espressoRemoveDoseVessel": "Remove the dosing vessel and leave the scale empty briefly.",
   "espressoCupBeforeStart": "Both start options unlock once the cup is in place.",
   "espressoScaleIsEmpty": "Scale is empty",
+  "espressoTrayBeforeStart": "Place the scale and cup on the drip tray before starting.",
   "espressoArm": "Start on first drops",
   "espressoManualStart": "Start now",
   "espressoVessels": "Dosing methods",

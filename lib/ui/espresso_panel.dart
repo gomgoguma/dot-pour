@@ -205,33 +205,57 @@ class EspressoActions extends StatelessWidget {
     final shot = c.espresso;
     final s = context.l10n;
     if (shot.phase == EspressoPhase.setup) {
-      return Row(
+      return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: OutlinedButton(
-              key: const Key('espresso-manual-start'),
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 50)),
-              onPressed:
-                  c.canStartEspresso
-                      ? () => c.startEspresso(automatic: false)
-                      : null,
-              child: Text(s.espressoManualStart, textAlign: TextAlign.center),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 2,
-            child: FilledButton(
-              key: const Key('espresso-auto-start'),
-              onPressed:
-                  c.canStartEspresso
-                      ? () => c.startEspresso(automatic: true)
-                      : null,
-              child: Text(
-                c.taring ? s.checkingZero : s.espressoArm,
-                textAlign: TextAlign.center,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            child: Text(
+              s.espressoTrayBeforeStart,
+              key: const Key('espresso-tray-before-start'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: copperText,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
               ),
             ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('espresso-manual-start'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 50),
+                  ),
+                  onPressed:
+                      c.canStartEspresso
+                          ? () => c.startEspresso(automatic: false)
+                          : null,
+                  child: Text(
+                    s.espressoManualStart,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: FilledButton(
+                  key: const Key('espresso-auto-start'),
+                  onPressed:
+                      c.canStartEspresso
+                          ? () => c.startEspresso(automatic: true)
+                          : null,
+                  child: Text(
+                    c.taring ? s.checkingZero : s.espressoArm,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       );

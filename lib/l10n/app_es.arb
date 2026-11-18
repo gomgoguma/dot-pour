@@ -287,6 +287,7 @@
   "espressoRemoveDoseVessel": "Retira el recipiente de dosificación y deja la báscula vacía un momento.",
   "espressoCupBeforeStart": "Al colocar la taza se habilitan los botones de inicio.",
   "espressoScaleIsEmpty": "La báscula está vacía",
+  "espressoTrayBeforeStart": "Coloca la báscula y la taza en la bandeja de goteo antes de empezar.",
   "espressoArm": "Desde las primeras gotas",
   "espressoManualStart": "Empezar ahora",
   "espressoVessels": "Métodos de dosificación",

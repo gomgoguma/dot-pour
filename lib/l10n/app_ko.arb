@@ -287,6 +287,7 @@
   "espressoRemoveDoseVessel": "도징에 사용한 용기를 내리고 저울을 잠시 비워 주세요.",
   "espressoCupBeforeStart": "잔을 올리면 아래 시작 버튼을 쓸 수 있어요.",
   "espressoScaleIsEmpty": "저울을 비웠어요",
+  "espressoTrayBeforeStart": "저울과 샷잔을 머신 트레이에 놓은 뒤 눌러 주세요.",
   "espressoArm": "첫 방울부터",
   "espressoManualStart": "바로 시작",
   "espressoVessels": "도징 방법 관리",

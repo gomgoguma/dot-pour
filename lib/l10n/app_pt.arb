@@ -287,6 +287,7 @@
   "espressoRemoveDoseVessel": "Retire o recipiente de dosagem e deixe a balança vazia por um momento.",
   "espressoCupBeforeStart": "Os botões de início ficam disponíveis ao colocar a xícara.",
   "espressoScaleIsEmpty": "A balança está vazia",
+  "espressoTrayBeforeStart": "Coloque a balança e a xícara na bandeja da máquina antes de iniciar.",
   "espressoArm": "Nas primeiras gotas",
   "espressoManualStart": "Começar agora",
   "espressoVessels": "Métodos de dosagem",

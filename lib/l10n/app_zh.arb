@@ -287,6 +287,7 @@
   "espressoRemoveDoseVessel": "取下称粉容器，让秤面暂时保持为空。",
   "espressoCupBeforeStart": "放上杯子后即可启动。",
   "espressoScaleIsEmpty": "秤面已清空",
+  "espressoTrayBeforeStart": "请先把秤和杯子放在咖啡机的接水盘上，再点击开始。",
   "espressoArm": "从第一滴开始",
   "espressoManualStart": "现在开始",
   "espressoVessels": "管理称粉方式",
