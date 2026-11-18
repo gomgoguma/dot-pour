@@ -48,6 +48,15 @@ class BrewController extends ChangeNotifier {
   late List<EspressoVessel> espressoVessels = _espressoStore.load();
   EspressoVessel? espressoVessel;
   bool _savingVessels = false;
+  bool _editingEspressoDose = false;
+  bool get espressoNeedsDose => espresso.dose == null || _editingEspressoDose;
+  double? _espressoCupBaseline;
+  bool _espressoSawEmptyScale = false;
+  bool _espressoCupReady = false;
+  bool get espressoCupReady => _espressoCupReady;
+  DateTime? _espressoCupPlacement;
+  double? _espressoCupWeight;
+  bool get espressoNeedsEmptyConfirmation => _espressoCupBaseline == null;
   double? _espressoDoseZero;
   int _espressoZeroGeneration = 0;
   bool get espressoZeroedForDose => _espressoDoseZero != null;
@@ -81,7 +90,8 @@ class BrewController extends ChangeNotifier {
   bool get canStartEspresso =>
       canPrepareEspresso &&
       espresso.phase == EspressoPhase.setup &&
-      espresso.dose != null &&
+      !espressoNeedsDose &&
+      espressoCupReady &&
       espressoReadingAvailable;
   final ManualTimer scaleTimer;
   final _scaleFlow = ScaleFlow();
@@ -154,6 +164,15 @@ class BrewController extends ChangeNotifier {
         return;
       }
       if (!brew.active) {
+        if (demo) {
+          final wasReady = espressoCupReady;
+          final wasEmpty = _espressoSawEmptyScale;
+          _observeEspressoCup(demoWeight, now);
+          if (wasReady != espressoCupReady ||
+              wasEmpty != _espressoSawEmptyScale) {
+            _changed();
+          }
+        }
         if (demo && setup && !starting && !taring) {
           _observeScaleFlow(demoWeight, now);
         }
@@ -376,6 +395,7 @@ class BrewController extends ChangeNotifier {
   Future<double?> tare() async {
     if (!canTare) return null;
     _clearEspressoDoseZero();
+    _resetEspressoCup();
     final before = currentGrams;
     final baseline = _doseBaseline;
     notice = null;
@@ -443,18 +463,88 @@ class BrewController extends ChangeNotifier {
     _changed();
   }
 
-  void setEspressoDose(double dose) {
+  void setEspressoDose(double dose, {bool measured = false}) {
     if (!canPrepareEspresso || !EspressoSession.validDose(dose)) return;
+    final bareScaleZero =
+        measured && espressoVessel != null ? _espressoDoseZero : null;
+    _resetEspressoCup();
+    _espressoCupBaseline = bareScaleZero;
     espresso.dose = dose;
+    _editingEspressoDose = false;
     _clearEspressoDoseZero();
     espressoNotice = null;
     _changed();
   }
 
-  Future<bool> registerEspressoVessel(
-    String name,
-    EspressoVesselKind kind,
-  ) async {
+  void editEspressoDose(bool editing) {
+    if (!canPrepareEspresso) return;
+    _editingEspressoDose = editing;
+    _clearEspressoDoseZero();
+    espressoNotice = null;
+    _changed();
+  }
+
+  void confirmEspressoEmptyScale() {
+    if (!canPrepareEspresso ||
+        espressoNeedsDose ||
+        espresso.phase != EspressoPhase.setup ||
+        !espressoReadingAvailable ||
+        !espressoNeedsEmptyConfirmation) {
+      return;
+    }
+    _espressoCupBaseline = currentGrams;
+    _espressoSawEmptyScale = true;
+    _changed();
+  }
+
+  void _resetEspressoCup() {
+    _espressoCupBaseline = null;
+    _espressoSawEmptyScale = false;
+    _espressoCupReady = false;
+    _espressoCupPlacement = null;
+    _espressoCupWeight = null;
+  }
+
+  void _observeEspressoCup(double? grams, DateTime at) {
+    final baseline = _espressoCupBaseline;
+    if (baseline == null ||
+        espressoNeedsDose ||
+        espresso.phase != EspressoPhase.setup ||
+        starting ||
+        taring) {
+      return;
+    }
+    if (grams == null || !grams.isFinite) {
+      _espressoCupReady = false;
+      _espressoCupPlacement = null;
+      _espressoCupWeight = null;
+      return;
+    }
+    final added = grams - baseline;
+    if (_espressoSawEmptyScale && added < -.5) {
+      _resetEspressoCup();
+      return;
+    }
+    if (added.abs() <= .5) _espressoSawEmptyScale = true;
+    if (!_espressoSawEmptyScale || added < 1) {
+      _espressoCupReady = false;
+      _espressoCupPlacement = null;
+      _espressoCupWeight = null;
+      return;
+    }
+    final previousWeight = _espressoCupWeight;
+    if (previousWeight == null || (added - previousWeight).abs() > .5) {
+      _espressoCupWeight = added;
+      _espressoCupPlacement = at;
+    }
+    _espressoCupReady =
+        at.difference(_espressoCupPlacement!) >=
+        const Duration(milliseconds: 200);
+  }
+
+  bool get espressoWaitingForCup => _espressoSawEmptyScale && !espressoCupReady;
+
+  Future<bool> registerEspressoVessel(String name) async {
     final weight = espressoRegistrationWeight;
     if (!canPrepareEspresso ||
         !espressoReadingAvailable ||
@@ -466,7 +556,6 @@ class BrewController extends ChangeNotifier {
     final vessel = EspressoVessel(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       name: name.trim(),
-      kind: kind,
       grams: (weight * 10).round() / 10,
     );
     final saved = await _writeEspressoVessels([vessel, ...espressoVessels]);
@@ -533,12 +622,14 @@ class BrewController extends ChangeNotifier {
   void resetEspresso() {
     if (espresso.active) return;
     espresso.reset();
+    _resetEspressoCup();
     espressoNotice = null;
     _changed();
   }
 
   void clearEspressoWeighing() {
     _clearEspressoDoseZero();
+    _resetEspressoCup();
     _changed();
   }
 
@@ -607,6 +698,7 @@ class BrewController extends ChangeNotifier {
     final newReading = scale.fresh && _lastSample != scale.lastReading;
     if (!scale.connected || !scale.measurementsReady) {
       _clearEspressoDoseZero();
+      _resetEspressoCup();
       _scaleFlow.reset();
       _dosePreparation.reset();
       _doseBaseline = null;
@@ -623,6 +715,11 @@ class BrewController extends ChangeNotifier {
       );
     }
     if (newReading && scale.connected && scale.measurementsReady) {
+      final reading = scale.reading!;
+      _observeEspressoCup(
+        reading.overloaded ? null : reading.grams,
+        scale.lastReading!,
+      );
       if (starting || taring) {
         _scaleFlow.reset();
       } else {
@@ -814,6 +911,7 @@ class BrewController extends ChangeNotifier {
     await _scale!.disconnect();
     if (_disposed) return;
     _clearEspressoDoseZero();
+    _resetEspressoCup();
     demo = !demo;
     reset();
   }
@@ -887,6 +985,7 @@ class BrewController extends ChangeNotifier {
       _doseBaseline = null;
       _confirmedDose = null;
       _clearEspressoDoseZero();
+      _resetEspressoCup();
       _lastSample = null;
       _scaleFlow.reset();
       notice = null;

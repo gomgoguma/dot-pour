@@ -27,6 +27,8 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'app.language': 'ko',
       'scale.model': 'test',
+      EspressoVesselStore.key:
+          '[{"id":"legacy","name":"이전 항목","kind":"dosingCup","grams":82.4}]',
     });
     final preferences = await SharedPreferences.getInstance();
     final scale = _LiveTestScale()..emit(0);
@@ -42,9 +44,39 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('home-mode-espresso')));
     await tester.pumpAndSettle();
+    final manualDose = find.byKey(const Key('espresso-manual-dose'));
+    final vessels = find.byKey(const Key('espresso-vessels'));
+    final vesselPicker = find.byType(DropdownButtonFormField<String>);
+    final useDose = find.byKey(const Key('espresso-use-dose'));
+    final doseReadout = find.byKey(const Key('espresso-dose'));
+    final readingGroup = find.byKey(const Key('espresso-dose-reading-group'));
+    void expectCenteredBelowDose(Finder button) {
+      expect(
+        tester.getCenter(button).dx,
+        closeTo(tester.getCenter(readingGroup).dx, 0.5),
+      );
+      expect(
+        tester.getTopLeft(button).dy,
+        greaterThanOrEqualTo(tester.getBottomLeft(readingGroup).dy),
+      );
+    }
 
-    await tester.tap(find.byKey(const Key('espresso-vessels')));
+    expectCenteredBelowDose(manualDose);
+    expect(
+      tester.getBottomLeft(manualDose).dy,
+      lessThan(tester.getTopLeft(vesselPicker).dy),
+    );
+    expect(
+      tester.getBottomLeft(vesselPicker).dy,
+      lessThanOrEqualTo(tester.getTopLeft(vessels).dy),
+    );
+    expect(useDose, findsNothing);
+
+    await tester.tap(vessels);
     await tester.pumpAndSettle();
+    expect(find.text('도징 방법 관리'), findsWidgets);
+    expect(find.text('이전 항목'), findsOneWidget);
+    expect(find.text('도징 방법 추가'), findsOneWidget);
     await tester.tap(find.byKey(const Key('espresso-register-tare')));
     await tester.pumpAndSettle();
     scale.emit(510);
@@ -58,10 +90,13 @@ void main() {
     await tester.ensureVisible(saveVessel);
     await tester.tap(saveVessel);
     await tester.pumpAndSettle();
-    final saved = EspressoVesselStore(preferences).load().single;
+    final entries = EspressoVesselStore(preferences).load();
+    expect(entries.length, 2);
+    expect(entries.last.name, '이전 항목');
+    expect(entries.last.grams, 82.4);
+    final saved = entries.first;
     expect(saved.name, '58 mm');
     expect(saved.grams, 510);
-    expect(saved.kind, EspressoVesselKind.portafilter);
     Navigator.of(
       tester.element(find.byKey(const Key('espresso-register-save'))),
     ).pop();
@@ -79,13 +114,49 @@ void main() {
     await tester.pumpAndSettle();
     scale.emit(528);
     await tester.pump();
-    expect(find.text('18.0g 사용'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('espresso-use-dose')));
+    expect(tester.widget<Text>(doseReadout).textSpan!.toPlainText(), '18.0 g');
+    expect(c.espresso.dose, isNull);
+    expect(find.text('이 원두량 사용'), findsOneWidget);
+    expect(
+      tester.getBottomLeft(vessels).dy,
+      lessThanOrEqualTo(tester.getTopLeft(useDose).dy),
+    );
+    await tester.tap(useDose);
     await tester.pumpAndSettle();
     expect(c.espresso.dose, 18);
+    expect(vesselPicker, findsNothing);
+    expect(vessels, findsNothing);
+    expect(find.text('바로 시작'), findsOneWidget);
+    expect(find.text('첫 방울부터'), findsOneWidget);
+    final editDose = find.byKey(const Key('espresso-edit-dose'));
+    expectCenteredBelowDose(editDose);
+    await tester.tap(editDose);
+    await tester.pumpAndSettle();
+    expect(vesselPicker, findsOneWidget);
+    expect(find.text('바로 시작'), findsNothing);
+    await tester.tap(find.byKey(const Key('espresso-cancel-dose')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(doseReadout).textSpan!.toPlainText(), '18.0 g');
 
-    scale.emit(74);
     final start = find.byKey(const Key('espresso-auto-start'));
+    final immediate = find.byKey(const Key('espresso-manual-start'));
+    expect(tester.widget<FilledButton>(start).onPressed, isNull);
+    expect(tester.widget<OutlinedButton>(immediate).onPressed, isNull);
+    expect(find.text('저울을 비워 주세요'), findsOneWidget);
+    scale.emit(74);
+    await tester.pump();
+    expect(tester.widget<FilledButton>(start).onPressed, isNull);
+    scale.emit(0);
+    await tester.pump();
+    expect(find.text('빈 샷잔을 올려 주세요'), findsOneWidget);
+    expect(tester.widget<FilledButton>(start).onPressed, isNull);
+    scale.emit(74);
+    scale.lastReading = scale.lastReading!.add(
+      const Duration(milliseconds: 250),
+    );
+    scale.emit(74);
+    await tester.pump();
+    expect(find.text('샷잔 준비 완료'), findsOneWidget);
     await tester.ensureVisible(start);
     await tester.tap(start);
     await tester.pumpAndSettle();
@@ -103,6 +174,37 @@ void main() {
     await tester.tap(find.byKey(const Key('espresso-finish')));
     await tester.pumpAndSettle();
     expect(c.espresso.phase, EspressoPhase.finished);
+    c.resetEspresso();
+    await tester.pump();
+    expect(tester.widget<FilledButton>(start).onPressed, isNull);
+    expect(
+      find.byKey(const Key('espresso-confirm-empty-scale')),
+      findsOneWidget,
+    );
+    scale.emit(-74);
+    await tester.tap(find.byKey(const Key('espresso-confirm-empty-scale')));
+    await tester.pump();
+    expect(tester.widget<OutlinedButton>(immediate).onPressed, isNull);
+    scale.emit(0);
+    scale.lastReading = scale.lastReading!.add(
+      const Duration(milliseconds: 250),
+    );
+    scale.emit(0);
+    await tester.pump();
+    expect(tester.widget<OutlinedButton>(immediate).onPressed, isNotNull);
+    scale.emit(-74);
+    await tester.pump();
+    expect(tester.widget<OutlinedButton>(immediate).onPressed, isNull);
+    scale.emit(0);
+    scale.lastReading = scale.lastReading!.add(
+      const Duration(milliseconds: 250),
+    );
+    scale.emit(0);
+    await tester.pump();
+    await tester.tap(immediate);
+    await tester.pumpAndSettle();
+    expect(c.espresso.phase, EspressoPhase.brewing);
+    expect(scale.tares, 4);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

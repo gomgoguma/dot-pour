@@ -56,9 +56,9 @@ The ratio control centers **− / 1 : ratio / +**, uses outlined circular button
 
 ## Espresso mode
 
-1. Enter your dose manually, or weigh it in the espresso tab. To use a saved portafilter or dosing cup, register it empty first. Include the basket and any dosing ring you use when weighing coffee.
-2. Select the saved vessel, tare the bare scale, and place the loaded vessel on it. Dot Pour subtracts the saved empty weight. Tap the displayed dose to confirm it. You can also tare an empty container and weigh the coffee directly.
-3. Remove the dosing vessel and place the shot cup on the scale. Choose automatic or manual start. Both tare the cup. Automatic start waits for two consecutive readings at least 0.2 g above zero.
+1. Enter your dose manually, or weigh it in the espresso tab. Under **Manage dosing methods**, name your setup and save the empty weight, including the basket and any dosing ring you use.
+2. Select a saved **Dosing method**, tare the bare scale, and place the loaded vessel on it. Dot Pour subtracts the saved empty weight and displays the live dose. Tap **Use this dose** to confirm it. You can also tare an empty container and weigh the coffee directly.
+3. Remove the dosing vessel and leave the scale empty briefly. Confirm that the scale is empty if prompted. Place an empty shot cup on the scale. When the weight settles, choose **Start now** or **Start on first drops**. Both tare the cup first. **Start on first drops** waits for two consecutive readings at least 0.2 g above zero.
 4. The chart shows yield in grams and flow in grams per second on the same time axis. The shot finishes after a pour lasting at least five seconds is followed by four seconds without a meaningful increase. You can finish manually at any time.
 
 ## Recipes
@@ -73,7 +73,7 @@ The ratio control centers **− / 1 : ratio / +**, uses outlined circular button
 
 ## Versioning
 
-The espresso preview version is **0.9.0+39**. Releases with new capabilities, such as espresso mode, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
+The current version is **0.9.0+41**. Releases with new capabilities, such as espresso mode, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
 
 ## Development setup
 

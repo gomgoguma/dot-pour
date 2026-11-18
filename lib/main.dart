@@ -309,7 +309,9 @@ class _BrewScreenState extends State<BrewScreen> {
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_page == 0 && _mode != _HomeMode.scale)
+            if (_page == 0 &&
+                (_mode == _HomeMode.pourOver ||
+                    (_mode == _HomeMode.espresso && !c.espressoNeedsDose)))
               Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 608),

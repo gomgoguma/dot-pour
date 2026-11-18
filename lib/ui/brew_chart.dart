@@ -63,10 +63,10 @@ class BrewChart extends StatelessWidget {
             ),
             if (showFlow) ...[
               const SizedBox(width: 16),
-              const Icon(
-                Icons.horizontal_rule,
-                color: espressoFlowBlue,
-                size: 20,
+              const SizedBox(
+                width: 20,
+                height: 1,
+                child: ColoredBox(color: espressoFlowBlue),
               ),
               const SizedBox(width: 5),
               Text(
@@ -262,15 +262,6 @@ class _ChartPainter extends CustomPainter {
             colors: [ink.withValues(alpha: 0.12), ink.withValues(alpha: 0.01)],
           ).createShader(bounds),
       );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = ink
-          ..strokeWidth = 2.5
-          ..strokeJoin = StrokeJoin.round
-          ..style = PaintingStyle.stroke,
-      );
-      canvas.drawCircle(last, 4, Paint()..color = ink);
       if (showFlow) {
         final flowPath = Path();
         for (final (index, point) in points.indexed) {
@@ -285,12 +276,21 @@ class _ChartPainter extends CustomPainter {
         canvas.drawPath(
           flowPath,
           Paint()
-            ..color = espressoFlowBlue
-            ..strokeWidth = 2
+            ..color = espressoFlowBlue.withValues(alpha: .82)
+            ..strokeWidth = 1
             ..strokeJoin = StrokeJoin.round
             ..style = PaintingStyle.stroke,
         );
       }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = ink
+          ..strokeWidth = 2.5
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke,
+      );
+      canvas.drawCircle(last, 4, Paint()..color = ink);
     }
     if (seconds > 0) {
       final x = bounds.left + seconds / maxTime * bounds.width;

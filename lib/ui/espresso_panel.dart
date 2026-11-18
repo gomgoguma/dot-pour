@@ -102,32 +102,94 @@ class EspressoPanel extends StatelessWidget {
                   child: Text(c.espressoDemoPour ? s.stopPour : s.autoPour),
                 ),
             ],
-            if (preparing && shot.dose != null) ...[
+            if (preparing && !c.espressoNeedsDose) ...[
               const SizedBox(height: 12),
-              SurfaceCard(
-                padding: const EdgeInsets.all(14),
-                child: Row(
+              _ShotCupCard(controller: c),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShotCupCard extends StatelessWidget {
+  final BrewController controller;
+  const _ShotCupCard({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    final s = context.l10n;
+    final reading = c.espressoReadingAvailable;
+    final ready = reading && c.espressoCupReady;
+    final title =
+        c.taring
+            ? s.checkingZeroShort
+            : !reading
+            ? s.connectScale
+            : ready
+            ? s.espressoCupReady
+            : c.espressoWaitingForCup
+            ? s.espressoPlaceCup
+            : s.espressoClearScale;
+    return SurfaceCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                ready
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.coffee_outlined,
+                color: ready ? muted : copperText,
+                size: 26,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.coffee_outlined, color: muted, size: 26),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        c.espressoReadingAvailable
+                    Text(
+                      title,
+                      key: const Key('espresso-cup-instruction'),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (reading && !c.taring) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        ready
                             ? s.espressoCupHint
-                            : s.connectScale,
+                            : c.espressoWaitingForCup
+                            ? s.espressoCupBeforeStart
+                            : s.espressoRemoveDoseVessel,
                         style: const TextStyle(
                           color: muted,
                           fontSize: 12,
                           height: 1.5,
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
             ],
+          ),
+          if (reading && !c.taring && c.espressoNeedsEmptyConfirmation) ...[
+            const SizedBox(height: 10),
+            OutlinedButton(
+              key: const Key('espresso-confirm-empty-scale'),
+              onPressed:
+                  c.canPrepareEspresso ? c.confirmEspressoEmptyScale : null,
+              child: Text(s.espressoScaleIsEmpty),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -207,17 +269,22 @@ class _DoseCard extends StatelessWidget {
     final dose = c.espresso.dose;
     final candidate = c.espressoNetDose;
     final valid = candidate != null && EspressoSession.validDose(candidate);
+    final editing = c.espressoNeedsDose;
+    final liveDose = editing && valid ? candidate : null;
     final vessel = c.espressoVessel;
     final instruction =
         c.espressoZeroedForDose
             ? (vessel == null ? s.espressoPlaceBeans : s.espressoPlaceLoaded)
             : (vessel == null ? s.espressoTareDirect : s.espressoTareEmpty);
-    final actionStyle = OutlinedButton.styleFrom(
-      foregroundColor: ink,
-      backgroundColor: mint,
+    final accessoryStyle = TextButton.styleFrom(
+      foregroundColor: muted,
       minimumSize: const Size(0, 44),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      textStyle: TextStyle(
+        fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+      ),
     );
     return SurfaceCard(
       padding: const EdgeInsets.all(14),
@@ -232,6 +299,7 @@ class _DoseCard extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Row(
+              key: const Key('espresso-dose-reading-group'),
               mainAxisSize: MainAxisSize.min,
               children: [
                 Image.asset(
@@ -245,7 +313,7 @@ class _DoseCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text.rich(
                   TextSpan(
-                    text: (dose ?? 0).toStringAsFixed(1),
+                    text: (editing ? liveDose ?? 0 : dose!).toStringAsFixed(1),
                     children: const [
                       TextSpan(
                         text: ' g',
@@ -269,116 +337,133 @@ class _DoseCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const Key('espresso-manual-dose'),
-                  style: actionStyle,
-                  onPressed:
-                      c.canPrepareEspresso ? () => _enterDose(context) : null,
-                  icon: const Icon(Icons.edit_outlined, size: 15),
-                  label: Text(
-                    s.enterDose,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12),
-                  ),
+          const SizedBox(height: 4),
+          Center(
+            child: OutlinedButton.icon(
+              key: Key(editing ? 'espresso-manual-dose' : 'espresso-edit-dose'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: muted,
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
                 ),
+                shape: const StadiumBorder(),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const Key('espresso-vessels'),
-                  style: actionStyle,
-                  onPressed:
-                      c.canPrepareEspresso
-                          ? () => _manageVessels(context)
-                          : null,
-                  icon: const Icon(Icons.inventory_2_outlined, size: 15),
-                  label: Text(
-                    s.espressoVessels,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12),
-                  ),
+              onPressed:
+                  !c.canPrepareEspresso
+                      ? null
+                      : editing
+                      ? () => _enterDose(context)
+                      : () => c.editEspressoDose(true),
+              icon: const Icon(Icons.edit_outlined, size: 14),
+              label: Text(
+                editing ? s.espressoEnterDoseShort : s.espressoChangeDose,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
-              ),
-            ],
-          ),
-          const Divider(height: 21),
-          DropdownButtonFormField<String>(
-            key: ValueKey('espresso-vessel-${vessel?.id ?? ""}'),
-            value: vessel?.id ?? '',
-            isExpanded: true,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: ink, fontSize: 13),
-            decoration: InputDecoration(
-              labelText: s.espressoWeighWith,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
+                textAlign: TextAlign.center,
               ),
             ),
-            items: [
-              DropdownMenuItem(
-                value: '',
-                child: Text(
-                  s.espressoDirectWeigh,
-                  overflow: TextOverflow.ellipsis,
+          ),
+          if (editing) ...[
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              key: ValueKey('espresso-vessel-${vessel?.id ?? ""}'),
+              value: vessel?.id ?? '',
+              isExpanded: true,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: ink, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: s.espressoWeighWith,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
               ),
-              for (final entry in c.espressoVessels)
+              items: [
                 DropdownMenuItem(
-                  value: entry.id,
+                  value: '',
                   child: Text(
-                    '${entry.name} · ${entry.grams.toStringAsFixed(1)} g',
+                    s.espressoDirectWeigh,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-            ],
-            onChanged:
-                c.canPrepareEspresso
-                    ? (id) => c.selectEspressoVessel(
-                      c.espressoVessels.where((v) => v.id == id).firstOrNull,
-                    )
-                    : null,
-          ),
-          const SizedBox(height: 9),
-          Text(
-            instruction,
-            style: const TextStyle(color: muted, fontSize: 12, height: 1.5),
-          ),
-          const SizedBox(height: 7),
-          Row(
-            children: [
-              OutlinedButton(
-                key: const Key('espresso-dose-tare'),
+                for (final entry in c.espressoVessels)
+                  DropdownMenuItem(
+                    value: entry.id,
+                    child: Text(
+                      '${entry.name} · ${entry.grams.toStringAsFixed(1)} g',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged:
+                  c.canPrepareEspresso
+                      ? (id) => c.selectEspressoVessel(
+                        c.espressoVessels.where((v) => v.id == id).firstOrNull,
+                      )
+                      : null,
+            ),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                key: const Key('espresso-vessels'),
+                style: accessoryStyle,
                 onPressed:
-                    c.canTare && c.espressoReadingAvailable
-                        ? c.tareEspressoDose
-                        : null,
-                child: const Text('TARE'),
+                    c.canPrepareEspresso ? () => _manageVessels(context) : null,
+                icon: const Icon(Icons.inventory_2_outlined, size: 14),
+                label: Text(s.espressoManageVesselsShort),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  key: const Key('espresso-use-dose'),
-                  style: secondaryButtonStyle(),
-                  onPressed:
-                      valid && c.canPrepareEspresso
-                          ? () => c.setEspressoDose(candidate)
-                          : null,
-                  child: Text(
-                    valid
-                        ? s.espressoUseDose(candidate.toStringAsFixed(1))
-                        : s.applyDose,
-                    textAlign: TextAlign.center,
+            ),
+            if (liveDose == null) ...[
+              Text(
+                c.taring
+                    ? s.checkingZero
+                    : !c.espressoReadingAvailable
+                    ? s.connectScale
+                    : instruction,
+                style: const TextStyle(color: muted, fontSize: 12, height: 1.5),
+              ),
+              if (!c.espressoZeroedForDose) ...[
+                const SizedBox(height: 7),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton(
+                    key: const Key('espresso-dose-tare'),
+                    onPressed:
+                        c.canTare && c.espressoReadingAvailable
+                            ? c.tareEspressoDose
+                            : null,
+                    child: const Text('TARE'),
                   ),
                 ),
+              ],
+            ] else
+              FilledButton(
+                key: const Key('espresso-use-dose'),
+                onPressed:
+                    c.canPrepareEspresso
+                        ? () => c.setEspressoDose(liveDose, measured: true)
+                        : null,
+                child: Text(s.espressoUseDose, textAlign: TextAlign.center),
               ),
-            ],
-          ),
+            if (dose != null)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  key: const Key('espresso-cancel-dose'),
+                  style: accessoryStyle,
+                  onPressed:
+                      c.canPrepareEspresso
+                          ? () => c.editEspressoDose(false)
+                          : null,
+                  child: Text(s.cancel),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -608,7 +693,6 @@ class _VesselsState extends State<_Vessels> {
     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
   );
   final _name = TextEditingController();
-  EspressoVesselKind _kind = EspressoVesselKind.portafilter;
   bool _saving = false;
   bool _failed = false;
 
@@ -618,11 +702,6 @@ class _VesselsState extends State<_Vessels> {
     super.dispose();
   }
 
-  String _kindName(AppLocalizations s, EspressoVesselKind kind) =>
-      kind == EspressoVesselKind.portafilter
-          ? s.espressoPortafilter
-          : s.espressoDosingCup;
-
   Future<void> _saveOrRemove([EspressoVessel? remove]) async {
     setState(() {
       _saving = true;
@@ -631,7 +710,7 @@ class _VesselsState extends State<_Vessels> {
     final c = widget.controller;
     final saved =
         remove == null
-            ? await c.registerEspressoVessel(_name.text, _kind)
+            ? await c.registerEspressoVessel(_name.text)
             : await c.removeEspressoVessel(remove);
     if (!mounted) return;
     setState(() {
@@ -664,9 +743,7 @@ class _VesselsState extends State<_Vessels> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(entry.name),
-                    subtitle: Text(
-                      '${_kindName(s, entry.kind)} · ${entry.grams.toStringAsFixed(1)} g',
-                    ),
+                    subtitle: Text('${entry.grams.toStringAsFixed(1)} g'),
                     trailing: IconButton(
                       tooltip: s.delete,
                       onPressed: _saving ? null : () => _saveOrRemove(entry),
@@ -675,24 +752,6 @@ class _VesselsState extends State<_Vessels> {
                   ),
                 if (c.espressoVessels.isNotEmpty) const Divider(height: 24),
                 SectionLabel(s.espressoRegister),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<EspressoVesselKind>(
-                  value: _kind,
-                  isExpanded: true,
-                  decoration: _input,
-                  dropdownColor: paper,
-                  items: [
-                    for (final kind in EspressoVesselKind.values)
-                      DropdownMenuItem(
-                        value: kind,
-                        child: Text(_kindName(s, kind)),
-                      ),
-                  ],
-                  onChanged:
-                      _saving
-                          ? null
-                          : (value) => setState(() => _kind = value!),
-                ),
                 const SizedBox(height: 8),
                 TextField(
                   key: const Key('espresso-vessel-name'),
