@@ -1,63 +1,89 @@
 # Dot Pour
 
-<img src="assets/brand/dot-pour-drops.png" alt="Dot Pour 두 물방울 로고" width="80" />
+<img src="assets/brand/dot-pour-drops.png" alt="Dot Pour logo with two drops" width="80" />
 
-BLE 커피 저울과 연결해 목표 물량 대비 진행률·유량·추출 그래프를 보여주는 Flutter 앱입니다. 현재 지원하는 저울은 **TIMEMORE Black Mirror Dot(TES017)**입니다.
+Dot Pour connects to a Bluetooth LE coffee scale and tracks poured water, flow rate, and progress toward your target on a live brew graph. It is built with Flutter and currently supports the **TIMEMORE Black Mirror Dot (TES017)**.
 
-**개발 중인 프로토타입입니다. Android 실기기 연결과 Windows PC의 별도 BLE 진단에서 도트 페어링·무게 수신을 확인했습니다. iOS 실기기 검증은 아직 완료하지 않았습니다.**
+## Getting started
 
-## 사용 방법
+1. On first launch, scroll the **Language** picker and confirm a language. You can change it later in **Settings**. Dot Pour supports English, Korean, Japanese, Simplified Chinese, Spanish, and Brazilian Portuguese.
+2. Select **TIMEMORE Black Mirror Dot**. Dot Pour remembers your selection. You can change it under **Settings → Scale Model**.
+3. Turn on the scale and close any other app connected to it. Tap **Connect** at the top of the screen and select your scale. Its battery level appears next to the connection button once the scale reports it.
+4. On Android, allow the Nearby devices permission. Android 11 and earlier may require location permission and enabled location services.
 
-1. 최초 실행에서 **TIMEMORE Black Mirror Dot**을 선택합니다. 선택은 다음 실행에도 유지됩니다. 하단 **설정 → 저울 모델**에서 다시 선택할 수 있습니다. 이후 도트를 켜고 기존에 연결된 앱을 종료합니다.
-2. 상단 **연결**에서 검색된 지원 저울을 선택합니다. 저울에서 잔량을 받으면 연결 버튼 옆에 표시합니다. Android에서는 근처 기기 권한을 허용합니다. Android 11 이하는 위치 권한과 위치 서비스가 필요할 수 있습니다.
-3. 기본 화면인 **Scale**에서는 현재 무게·TARE·수동 타이머를 사용합니다. 타이머는 시작·일시정지·계속·초기화를 직접 조작합니다. **물줄기 자동 감지**를 켜면 Scale 모드에서 0g 부근이 0.3초간 안정된 뒤 연속으로 무게가 증가할 때 시작합니다. 기본값은 꺼짐이며 선택은 저장됩니다. 일시정지 후에는 계속 버튼으로 재개하고, 초기화하면 다시 0g에서 자동 시작을 기다립니다. TARE는 실행 중인 타이머를 초기화하지 않습니다. 탭이나 하단 메뉴를 바꿔도 타이머는 유지됩니다. 현재 무게 바로 아래에는 최근 무게 변화로 계산한 유량을 작게 표시합니다.
-4. **Pour over**는 **기구 준비 → 원두 계량**으로 진행합니다. 기구 준비 카드에는 서버·드리퍼의 전체 무게 대신 준비 안내를 표시합니다. 서버·드리퍼만 올리고 준비 카드 안의 **원두 계량 시작**을 누르면 그때의 무게를 기준으로 저장하고, 이후 증가분만 원두량으로 표시합니다. 예를 들어 기구 380g에서 398g이 되면 원두량은 18g입니다. 이 단계 이동은 저울을 영점 처리하지 않습니다. 하단의 **추출 시작**은 두 단계에서 계속 표시하며 원두량이 유효해지면 활성화됩니다. 카드의 **기구 다시 준비**를 누르면 기존 원두량과 기준을 지우고 원두를 빼라는 안내를 표시합니다. 원두를 빼고 기구만 올린 후 **원두 계량 시작**을 눌러 다시 계량합니다. 카드 우상단의 **원두량 직접 입력**은 두 단계에서 모두 사용할 수 있습니다. **TARE**는 Scale에서 사용할 수 있으며 계량 중인 원두량과 준비 단계를 유지합니다.
-5. 기구 무게가 1.5초간 유지되면 **원두 계량을 시작해 주세요**라고 안내합니다. 안정된 기준에서 **40g 초과 증가**는 기구 추가로 보고 새 무게가 가라앉은 뒤 기준을 갱신합니다. 서버와 드리퍼를 연달아 올린 경우에도 마지막 무게가 가라앉은 뒤 기준을 잡습니다. 원두 계량 화면에 이미 들어간 뒤 드리퍼를 추가해도 같은 규칙으로 기준을 갱신하며, 확인 중에는 추출 시작을 막습니다. **40g 이하 증가**가 0.8초간 유지되면 원두 후보로 봅니다. 0.5g 이내 변화는 흔들림으로 제외합니다. 준비 단계에서는 **감지된 원두량 사용**으로 확인하고, 계량 단계에서는 증가분을 원두량으로 표시합니다. 자동으로 다음 단계로 넘어가지는 않습니다. 40g 이하 드리퍼나 한 번에 넣는 40g 초과 원두는 이 기준만으로 구분하지 않으며, 직접 입력으로 확정한 원두량은 자동 변경하지 않습니다.
-6. 홈 화면의 **원두 : 물**에서 프리셋을 선택하거나 숫자를 직접 입력합니다. − / + 버튼으로 0.5씩 조절할 수도 있습니다. 시작 버튼은 **추출 시작** 아래에 원두량·비율·목표 물량을 함께 표시합니다. 원두량이 유효하지 않으면 확인 안내를 표시하고 시작을 막습니다. **추출 시작**을 누르면 계량하거나 확정한 원두량으로 목표 물량을 계산하고 현재 저울을 영점 처리합니다. 실제 0g 부근의 새 측정값을 확인한 뒤 추출 화면으로 넘어갑니다.
-7. 물량은 0g부터 표시합니다. 물이 0.5g 이상 증가한 두 번의 측정 후 앱 타이머가 시작됩니다. 원두가 없거나 목표 물량이 저울 용량을 넘으면 시작할 수 없습니다.
-8. 추출이 끝나면 **추출 마치기**를 누릅니다. 결과 화면의 **레시피로 저장**을 눌러 이름을 붙여 그래프와 붓기 단계를 저장할 수 있습니다. 저장 창은 자동으로 열리지 않습니다.
+Selecting a model and connecting over Bluetooth are separate actions. Selecting a model leaves scanning and permission requests until you connect. Model changes are disabled during a brew or while a connection is in progress. Switching models closes the previous connection and subscriptions and preserves your settings, recipes, and completed brew records.
 
-저울 모델 선택과 실제 BLE 연결은 별개입니다. 모델을 선택하는 것만으로 블루투스 권한을 요청하거나 검색하지 않습니다. 추출·연결 작업 중에는 모델 변경을 막고, 다른 모델로 변경하면 이전 연결과 구독을 정리합니다. 설정과 저장한 레시피, 완료된 추출 기록은 유지됩니다.
+## Scale mode
 
-원두 20g, 비율 1:16이면 목표는 320g입니다. 물 160g → 50%, 320g → 100%, 352g → 110%로 표시합니다.
+**Scale** is the default mode. It shows live weight, a small flow-rate readout based on recent weight changes, and a timer you can start, pause, resume, or reset manually. The timer keeps its state when you switch tabs or sections. **TARE** zeros the scale and leaves the timer as it was.
 
-화면은 크림색 바탕·흰색 카드·차콜 버튼·테라코타 강조색으로 구성합니다. 준비 단계를 포함한 카드는 흰색 바탕·얇은 웜그레이 테두리·은은한 그림자로 구분합니다. 보조 버튼은 따뜻한 베이지색으로, 비활성 시작 버튼은 검은 외곽선 없이 표시합니다. 비율의 ± 버튼은 원형 테두리를 유지하고 프리셋 위에 구분선을 둡니다. 숫자는 굵기·자간·고정 자릿수 폭을 통일하고, 테라코타 강조색은 #D96B43, 작은 강조 문자는 대비가 높은 짙은 색을 사용합니다. 앱과 미리보기는 내장 Pretendard 서체를 사용합니다. 기존 두 물방울 로고와 상단 Bluetooth 연결·배터리 표시를 유지합니다. 상단 로고·탭과 카드의 여백을 줄여 320×740 화면에서도 기본 저울과 준비 단계의 핵심 조작을 스크롤 없이 표시합니다. 기본 저울의 무게·타이머를 조금 줄이고 유량은 무게 아래 중앙에 작은 회색 글자로 표시합니다. 추출 화면에서는 현재 물량을 크게 표시하고 오른쪽에 회색 목표량을, 바로 아래에 유량을 배치합니다. 시간과 달성률은 그 아래 나란히 표시합니다. 준비 단계에는 예상 추출 그래프를 표시하지 않습니다.
+You can enable **Auto-detect pouring** to start the timer when weight rises on consecutive readings after staying near 0 g for 0.3 seconds. The option is off by default and your choice is saved. Use the resume button after pausing. Resetting the timer makes it wait for another pour from 0 g.
 
-홈 상단은 **Scale / Pour over / Espresso** 모드 탭이며 앱을 열면 Scale이 기본입니다. 추출을 시작하면 모드 탭이 사라져 그래프 공간이 넓어지고, 새 추출을 준비할 때 다시 나타납니다. Espresso는 준비 중 화면을 표시합니다. 하단 **브루잉 · 레시피 · 설정**으로 이동하며 진행 중인 추출은 계속 기록됩니다. 실시간 저울값은 추출 카드 맨 우상단에 원두량·비율과 같은 줄로 작게 표시하고, 측정 대기 중에는 호박색 점이 나타납니다. 타이머는 달성률 왼쪽에 표시합니다. 그래프는 가로축 시간, 세로축 질량(g)입니다. 홈의 비율 조절은 **− / 1 : 비율 / +**를 가운데 배치하고 숫자를 눌러 직접 입력합니다. 홈과 레시피 편집 화면의 비율 프리셋은 **ICE: 1:9, 1:10, 1:11 / HOT: 1:15, 1:16.7, 1:17** 두 그룹의 개별 테두리 버튼으로 표시하며 선택한 비율만 차콜색으로 강조합니다.
+## Pour-over mode
 
-Windows에서는 **저울 없이 데모로 체험**에서 무게 슬라이더 또는 자동 붓기를 사용할 수 있습니다. 추출이 시작되면 **기구 들기**와 **기구 놓기**로 무게 안정 대기와 복귀를 확인할 수 있습니다. 레시피를 불러온 경우 **가이드 따라 붓기**로 시뮬레이션합니다. 데모 기록에는 별도 표시가 붙습니다.
+1. **Set up your equipment.** Place the server and dripper on the scale, then tap **Start weighing coffee**. Dot Pour records their combined weight as the baseline. It shows only the added coffee weight in the next step. For example, if the reading goes from 380 g to 398 g, the dose is 18 g. The scale's zero point stays the same.
+2. **Weigh the coffee.** Tap **Set up equipment again** if you need to start over. This clears the dose and baseline and prompts you to remove the coffee before weighing again. **Enter dose manually** is available at the top right of the card in either step. You can also use **TARE** in Scale mode while keeping your current dose and preparation step.
+3. **Choose a ratio.** Use a preset, tap the ratio to type a value, or use **−** and **+** to adjust it in 0.5 increments. A 20 g dose at 1:16 gives a 320 g target. Pouring 160 g, 320 g, and 352 g shows 50%, 100%, and 110% progress, respectively.
+4. **Start brewing.** The start button stays visible during both preparation steps and shows the dose, ratio, and water target. It becomes available when the dose is valid and the target is within the scale's capacity. Starting a brew fixes the dose and ratio, tares the scale, and opens the brew screen after a fresh reading near 0 g.
+5. **Pour and finish.** The poured-water reading starts at 0 g. The app timer starts after two consecutive readings show at least 0.5 g of water. Measurements continue after you reach the target. Tap **Finish brew** to see the results, then tap **Save as recipe** if you want to keep the brew. The save dialog opens only when you request it.
 
-서버를 잠깐 들거나 드리퍼를 스월링해도 추출 시간은 계속 흐릅니다. 급격한 감소·증가·과부하가 감지되면 그래프는 마지막으로 확인한 물량에서 수평으로 이어집니다. 기구를 내려놓고 연속된 정상 측정이 돌아오면 기록을 재개합니다. 대기 중에 생긴 차이는 붓기 추정에서 제외합니다. 서버만 저울에 놓으면 서버에 모인 음료 무게를 측정합니다. 용기를 포함한 전체 무게가 저울 용량 이내여야 합니다.
+### Equipment and dose detection
 
-## 레시피
+- When the equipment weight holds steady for 1.5 seconds, the app prompts you to start weighing coffee. While you're setting up, the card shows this guidance in place of the equipment's total weight.
+- An increase of more than 40 g is treated as added equipment. The app waits for the new weight to settle before updating the baseline. This works when the server and dripper are placed in succession and when a dripper is added after dose weighing has begun. Brew start is temporarily disabled while the weight settles.
+- An increase of up to 40 g that holds for 0.8 seconds is treated as a possible dose. Changes within 0.5 g are ignored as noise. In the equipment step, tap **Use detected dose** to confirm it. In the weighing step, the added weight appears as the dose. Detection alone leaves you in the current step, and a confirmed manual dose stays fixed.
+- The thresholds can mistake a dripper weighing 40 g or less for coffee, or a dose added all at once above 40 g for equipment.
 
-- **기록 저장:** 추출 종료 후에는 결과 화면을 유지합니다. 완료 화면에서 **레시피로 저장**을 눌렀을 때만 저장 창이 열립니다. 시간·물량·유량을 저장하며, 물을 붓지 않은 세션은 저장하지 않습니다. 저장창에서 원두 종류와 추출 메모, 산미·단맛·바디감 별점(1~5점)을 선택적으로 남길 수 있습니다. 선택한 별을 다시 누르면 해제됩니다. 기록은 레시피 상세에서 다시 볼 수 있고, 이전 버전의 레시피도 그대로 읽습니다.
-- **다시 추출:** 하단 **레시피** → 저장한 레시피 → **이 레시피로 추출**. 저장된 곡선이 점선으로, 현재 추출이 실선으로 표시됩니다. 현재 차수, 누적 목표, 차수의 평균 유량, 다음 차수까지 대기 시간과 기준 물량의 차이를 안내합니다. 물 붓기는 사용자가 직접 합니다.
-- **수동 계획:** 내 레시피의 **+**에서 이름·원두량·비율과 1~20개의 붓기 차수를 정합니다. 각 차수는 시작 시각, 붓는 시간, 추가할 g 또는 %로 구성합니다. 예를 들어 목표 300g의 20% / 40% / 40%는 60g / 120g / 120g을 추가하며 누적 목표는 60g / 180g / 300g입니다.
-- **시간과 합계:** 첫 붓기는 0초, 이후 차수의 시작은 직전 붓기 종료 이후입니다. 합계는 목표 물량 또는 100%여야 합니다. 총 추출시간에는 마지막 붓기 이후 기다리는 시간도 포함합니다. g/% 전환 시 입력량을 환산하며, 균등 분배와 그래프 미리보기를 지원합니다.
-- **물량 조정:** 추출 시작 시 계량한 원두량과 선택한 비율에 맞춰 불러온 레시피의 붓기량과 기준 곡선을 비례 조정하고 시간은 유지합니다. 저장된 원본은 유지됩니다.
-- **기록의 붓기 단계:** 실제 무게 변화로 추정합니다. 5초 미만의 짧은 멈춤은 같은 차수에 포함하고, 5초 이상 증가가 멈추면 차수를 나눕니다. 재현 그래프에는 멈춘 구간까지 포함된 원본 기록을 사용합니다. 이 기준은 새로 저장하는 기록에 적용되며, 이전에 저장한 단계나 수동 계획은 바꾸지 않습니다. 기록을 바탕으로 별도의 수동 계획도 만들 수 있습니다.
-- **보관:** 이 기기에 저장됩니다. 앱을 다시 열어도 남지만 앱 데이터 삭제·제거 시 없어질 수 있습니다. 클라우드 동기화와 내보내기는 아직 지원하지 않습니다.
+### While brewing
 
-## 버전 관리
+The brew screen hides the mode tabs to make room for the graph. It shows poured water, the target, and flow rate, with elapsed time to the left of progress. A small live weight reading sits beside the dose and ratio at the top right. An amber dot appears while the app waits for usable readings. The graph plots time on the horizontal axis and mass in grams on the vertical axis.
 
-현재 버전은 **0.7.0+37**입니다. 기본 저울·수동 타이머와 준비 단계 변경처럼 기능 범위가 늘어나는 릴리스는 minor 버전을 올립니다. 같은 기능의 오류·표현 수정은 patch 버전을 올리고, Android 설치 순서에 쓰이는 빌드 번호는 APK 배포마다 증가시킵니다.
+The clock keeps running if you lift the server or swirl the dripper. If there is a sudden weight change or an overload, the graph continues at the last confirmed poured-water value. Tracking resumes after the equipment is back and consecutive valid readings arrive. Weight changes during the wait are excluded from the poured-water estimate. With just the server on the scale, you can measure the collected beverage. Keep the total weight, including the vessel, within the scale's capacity.
 
-## 개발 환경
+### Navigation and Windows demo
 
-- Flutter 3.29.3 / Dart 3.7.2 이상
-- `bluetooth_low_energy` 6.1.0: Android / iOS / Windows 네이티브 BLE
-- `shared_preferences`: 마지막 비율·저울 선택과 레시피 저장
-- `wakelock_plus`: 추출 중 화면 켜짐 유지
+The **Scale**, **Pour over**, and **Espresso** tabs return when you prepare a new brew. **Espresso** currently shows a placeholder screen. The bottom navigation opens **Brewing**, **Recipes**, or **Settings**. An active brew continues recording as you navigate.
+
+On Windows, use **Try without a scale** to adjust the simulated weight with a slider or run an automatic pour. During a brew, **Lift equipment** and **Set equipment down** simulate a pause in tracking and its recovery. If a recipe is loaded, use **Follow recipe** to simulate its pours. Demo records are labeled as such.
+
+### Display
+
+The interface uses a cream background, white cards with warm-gray borders and subtle shadows, charcoal primary buttons, and beige secondary buttons. Terracotta (`#D96B43`) marks accents, with a darker shade for small accent text. Disabled start buttons have no dark outline. The app and preview use bundled Pretendard fonts with consistent weights, letter spacing, and tabular numerals. The two-drop logo and the Bluetooth and battery indicators sit at the top.
+
+Compact spacing keeps the main Scale and preparation controls visible on a 320 × 740 screen. Scale mode uses smaller weight and timer readouts and centers the flow rate under the weight. The brew screen shows poured water in large type, the target in gray to its right, and flow rate underneath. The graph appears once brewing starts.
+
+The ratio control centers **− / 1 : ratio / +**, uses outlined circular buttons, and separates the control from its presets with a divider. Brewing and the recipe editor group the presets under **ICE** (1:9, 1:10, 1:11) and **HOT** (1:15, 1:16.7, 1:17). Each preset has its own outline, with a charcoal fill for the selected preset.
+
+## Recipes
+
+- **Save a brew.** The results stay on screen after you finish. Tap **Save as recipe** to name and save the record with time, water weight, and flow rate. You can add the coffee used, brew notes, and 1–5 star ratings for acidity, sweetness, and body. Tap the selected star again to clear it. Brew records are available in the recipe details, including recipes saved by earlier versions. Sessions with no water poured cannot be saved.
+- **Brew a saved recipe.** Open **Recipes**, select a recipe, and tap **Brew this recipe**. The reference curve is dashed and the live brew is solid. The guide shows the current pour, cumulative target, average flow for that pour, time until the next pour, and the difference from the reference amount. You pour the water yourself.
+- **Create a manual plan.** Tap **+** in your recipe list. Set a name, dose, ratio, and 1–20 pours. Each pour has a start time, duration, and amount in grams or percent. For a 300 g target, 20% / 40% / 40% adds 60 g / 120 g / 120 g, giving cumulative targets of 60 g / 180 g / 300 g.
+- **Set timing and totals.** The first pour starts at 0 seconds. Later pours start at or after the end of the previous one. Pour amounts must add up to the water target or 100%. Total brew time can include a wait after the last pour. Switching between grams and percent converts the entered amounts. The editor can distribute water evenly and preview the curve.
+- **Scale a recipe.** When you start a brew, Dot Pour adjusts a loaded recipe's water amounts and reference curve to match your measured dose and selected ratio. The timing and the saved recipe stay the same.
+- **Review recorded pours.** The app estimates pour stages from weight changes. Pauses shorter than 5 seconds stay within the same stage. A pause of at least 5 seconds starts a new stage when pouring resumes. The reference graph keeps the original readings, including pauses. This rule applies to newly saved records. Existing stages and manual plans are preserved. You can also create a separate manual plan from a record.
+- **Keep recipes on this device.** Saved recipes persist between launches. Clearing app data or uninstalling may remove them. Cloud sync and export are pending.
+
+## Versioning
+
+The current version is **0.7.0+37**. Releases with new capabilities, such as Scale mode with a manual timer or changes to brew preparation, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
+
+## Development setup
+
+- Flutter 3.29.3 and Dart 3.7.2 or later.
+- `bluetooth_low_energy` 6.1.0 for native BLE on Android, iOS, and Windows.
+- `shared_preferences` for the last ratio, selected scale, and recipes.
+- `wakelock_plus` to keep the screen awake during a brew.
 
 ```sh
 flutter pub get
 flutter analyze
 flutter test
-flutter run -d windows
 ```
 
-Android는 Android SDK, NDK 27.0.12077973 및 라이선스 설정이 필요합니다. Java는 `jlink`를 포함하는 **정식 JDK 17**을 사용합니다. IDE에 포함된 경량 Java 런타임은 빌드에 필요한 도구가 없을 수 있습니다. 실제 BLE는 실물 기기에서 테스트합니다.
+### Android
+
+Install the Android SDK and NDK 27.0.12077973 and accept the SDK licenses. Use a full **JDK 17** with `jlink`. The lightweight Java runtime bundled with an IDE may lack build tools. Use a physical device to test BLE.
 
 ```sh
 flutter run -d <android-device-id>
@@ -65,71 +91,76 @@ flutter build apk --debug
 flutter build apk --release
 ```
 
-Windows에서 다른 Java 버전이 기본으로 선택되는 경우, 빌드할 터미널의 `JAVA_HOME`을 JDK 17 설치 폴더로 설정한 뒤 실행합니다. 시스템 전역 설정을 변경할 필요는 없습니다.
+If Windows picks a different Java version, set `JAVA_HOME` to your JDK 17 directory in the build terminal. Use a release APK for performance comparisons. Release APKs currently use the same development signing key as earlier test APKs, so they can update compatible test installs. Store distribution requires a separate signing setup.
 
-iOS는 macOS, Xcode, 서명 설정과 실물 iPhone이 필요합니다. Windows에서 iOS 빌드나 기기 테스트를 할 수는 없습니다.
+### Windows
+
+Install the Visual Studio C++ build tools.
+
+```sh
+flutter run -d windows
+```
+
+If Flutter cannot link plugins, enable Windows Developer Mode or run `powershell -File tool/windows-plugin-links.ps1` to create junctions within the project. Run **`flutter pub get` again** afterward to register the native plugins. When sharing a Windows build, include the entire `Release` folder.
+
+### iOS
+
+Use macOS with Xcode. Running on a physical iPhone requires signing. Build without signing with the following command on macOS.
 
 ```sh
 flutter build ios --no-codesign
 ```
 
-Windows 빌드에는 Visual Studio C++ 빌드 도구가 필요합니다. Flutter 플러그인 링크 오류가 발생하면 Windows 개발자 모드를 사용하거나 `powershell -File tool/windows-plugin-links.ps1`로 프로젝트 내부에 junction을 생성할 수 있습니다. 링크를 만든 뒤 **`flutter pub get`을 다시 실행**해 네이티브 플러그인 등록까지 완료합니다.
+## Behavior and limitations
 
-## 동작과 제한
+- The app timer runs independently of the scale's timer. On connection, Dot Pour checks the scale's response to the command to set the unit to grams.
+- On the Dot, starting a brew confirms the dose, tares the scale, and establishes the baseline. **TARE** is available in Scale mode and disabled during brewing. An adapter without tare support uses an app-side baseline.
+- A disconnection or a data gap of at least 2 seconds ends the session. Sudden weight changes and brief overloads instead pause weight tracking until normal readings return, with no reset to 0 g or additional tare. Use Dot Pour with the screen on. Background connection and automatic reconnection are pending.
+- On a live connection, the next reading is used to check a sudden spike. Flow rate comes from the last 0.4 seconds of valid weight changes. The app does not use the Dot's separate flow reading on the brew screen. The graph samples about every 0.25 seconds and uses a longer interval for long recordings to limit stored data. Excluded segments remain marked after saving, replaying, or downsampling.
+- Small fluctuations leave tracking active. A significant lift or spike is excluded, and tracking can resume while water is being poured once consecutive normal readings return. During recovery, the last confirmed water amount holds until the reading reaches its previous level or settles slightly below it. If it settles slightly lower, the baseline is adjusted so subsequent increases are counted from that weight. Intermediate readings while the weight is still rising do not increase the recorded amount. Large weight losses and sudden zero readings do not trigger a baseline adjustment.
+- Measurements update on the next Flutter frame as notifications arrive. End-to-end response time also includes sensor and wireless latency.
+- Dot Pour checks the Dot's primary BLE service and model information. Firmware differences may affect responses and pairing and require testing on the device.
+- A zero CRC in the reserved field is accepted. Nonzero CRCs are validated.
+- Windows checks pairing before connecting. Android requests permissions after initializing BLE and skips permissions already granted. Closing the device picker cancels an active scan.
 
-- 비율·원두량은 추출 시작 시 고정합니다. 목표 도달 후에도 계속 측정합니다.
-- 타이머는 앱에서 동작합니다. 저울 타이머와 동기화하지 않습니다.
-- 연결 시 저울의 g 단위 설정에 대한 응답을 확인합니다.
-- 도트에서는 시작 시 원두량을 확정하고 자동 영점 후 기준 무게를 잡습니다. **TARE** 버튼은 Scale 모드에서 사용하며 추출 중에는 막습니다. 영점을 지원하지 않는 어댑터는 앱 내부 기준 무게를 사용합니다.
-- 연결 해제 또는 2초 이상 데이터 중단 시 세션을 중단합니다. 중량 급변이나 순간 과부하는 세션을 중단하지 않고 정상 무게 복귀를 기다립니다. 기다리는 동안 0g으로 되돌리거나 영점을 다시 잡지 않습니다.
-- 화면을 켠 채 사용하는 것을 기준으로 합니다. 백그라운드 연결 유지와 자동 재연결은 아직 구현하지 않았습니다.
-- 실제 연결에서는 다음 측정 한 번으로 순간 튐을 확인하고, 정상 무게의 최근 0.4초 변화로 유량을 계산합니다. 도트가 보내는 별도 유량값은 추출 화면에 사용하지 않습니다. 그래프는 약 0.25초 간격이며 긴 기록은 저장량을 제한하기 위해 간격을 늘립니다. 제외 구간 표시는 저장·재현·축소 후에도 유지합니다.
-- 작은 중량 흔들림은 추출을 보류하지 않습니다. 크게 들리거나 튄 구간은 기록에서 제외하며, 내려놓은 뒤 연속된 정상 변화가 확인되면 물을 붓는 중에도 재개합니다. 복귀 시 소폭 줄어든 무게가 안정된 경우에만 기준을 보정해 기존 물량을 보존하고 이후 증가분을 더합니다. 무게가 돌아오는 도중에는 이전 물량까지 회복하거나 낮은 무게가 안정될 때까지 기존 물량을 유지하며, 상승 중간값을 기준으로 보정해 물량을 부풀리지 않습니다. 큰 무게 손실이나 갑작스러운 0g은 임의로 복원하지 않습니다.
-- 측정 알림은 별도 화면 타이머를 기다리지 않고 다음 Flutter 프레임에 반영합니다. 저울 센서·무선 전송에서 발생하는 지연과 앱 처리 시간은 별도로 확인해야 합니다.
-- 도트의 기본 BLE 서비스와 모델 정보를 검사합니다. 펌웨어에 따른 응답·페어링 차이는 실기기 검증이 필요합니다.
-- 수신 CRC가 0인 reserved 필드를 허용하며, 0이 아닌 CRC는 검증합니다.
-- Windows 연결 시 도트의 페어링을 먼저 확인합니다. Android 검색은 BLE 초기화 후 권한을 요청하며 이미 허용된 권한은 다시 요청하지 않습니다. 검색 창을 닫으면 진행 중인 검색도 정리합니다.
+On Android, Dot Pour requests a higher BLE connection priority when it subscribes to weight notifications and when the app returns to the foreground. It restores balanced priority after unsubscribing or disconnecting. The scale can still connect if the request is denied, and the actual interval depends on negotiation between the devices. Flutter engine shutdown cleans up native connections, notification queues, and event receivers. Late callbacks from an older connection are kept separate so they cannot close a newer one.
 
-Android는 무게 알림을 구독할 때와 앱으로 복귀할 때 빠른 BLE 연결 우선순위를 요청하고, 구독 해제·연결 종료 시 균형 모드로 돌립니다. 요청 거부가 저울 연결을 막지 않으며 실제 연결 간격은 기기 간 협상 결과에 따릅니다. 앱 엔진 종료 시 네이티브 연결·알림 대기열·이벤트 수신기를 정리하며, 이전 연결에서 늦게 도착한 알림이 새 연결을 해제하지 않도록 구분합니다.
+If Android notification delivery falls behind, the newest reading replaces an undelivered reading from the same run of normal weight packets. Command responses, fragmented packets, and overload readings retain their order. Normal delivery has no added wait timer.
 
-Android 알림 전달이 밀리면 연속된 정상 무게 패킷 중 아직 전달하지 않은 값을 최신 값으로 교체합니다. 명령 응답·분할 패킷·과부하 등은 순서를 보존하며, 정상 전달에는 별도 대기 타이머를 추가하지 않습니다.
+## Project structure
 
-## 코드 구조
+| Path | Responsibility |
+| --- | --- |
+| `lib/scales/scale.dart` | Shared `CoffeeScale` interface for scanning, connecting, reading, taring, and disconnecting |
+| `lib/scales/scale_models.dart` | Device information, capabilities, and readings in g and g/s |
+| `lib/scales/scale_registry.dart` | Model list and adapter factories, currently containing the Dot |
+| `lib/scales/timemore_dot/` | Dot BLE adapter, framing, CRC checks, and packet decoding |
+| `lib/brew_session.dart` | Ratio and flow calculations, brew state, and time-series samples |
+| `lib/pour_signal.dart` | Lift and swirl filtering and weight recovery |
+| `lib/brew_controller.dart` | BLE, demo, weighing, brewing, and recipe state |
+| `lib/manual_timer.dart`, `lib/scale_flow.dart`, `lib/ui/basic_scale.dart` | Scale mode, flow rate, manual timer, and optional pour detection |
+| `lib/ui/save_recipe_dialog.dart` | Post-brew coffee details, notes, ratings, and record display |
+| `lib/recipe.dart`, `lib/recipe_store.dart` | Pour plans, reference curves, brew guidance, and local storage |
+| `lib/main.dart`, `lib/ui/` | Scale selection, brewing screens, graphs, settings, and recipe library and editor |
+| `test/` | Protocol, calculation, and UI flow tests |
+| `packages/bluetooth_low_energy_android/` | Local MIT-licensed Android plugin based on 6.1.0, with connection priority and notification queue changes. Windows and iOS use the upstream implementations. |
 
-- `lib/scales/scale.dart`: `CoffeeScale` 공통 인터페이스 (검색·연결·측정·영점·해제)
-- `lib/scales/scale_models.dart`: 공통 기기 정보, 지원 기능, g·g/s 단위의 측정값
-- `lib/scales/scale_registry.dart`: 모델 목록과 구현 생성 함수, 현재 도트만 등록
-- `lib/scales/timemore_dot/`: 도트 전용 BLE 어댑터와 프레임·CRC·패킷 디코딩
-- `lib/brew_session.dart`: 비율·유량 계산, 추출 상태와 시계열 기록
-- `lib/pour_signal.dart`: 들기·스월링 신호 제외와 안정된 무게 복귀 확인
-- `lib/brew_controller.dart`: BLE·데모·계량 단계·추출·레시피 상태 연결
-- `lib/manual_timer.dart`, `lib/scale_flow.dart`, `lib/ui/basic_scale.dart`: 기본 저울·유량·수동 타이머와 선택 가능한 첫 물줄기 자동 감지
-- `lib/ui/save_recipe_dialog.dart`: 추출 후 원두·메모·맛 별점 저장과 기록 표시
-- `lib/recipe.dart`, `lib/recipe_store.dart`: 붓기 계획, 기준 곡선, 재현 안내와 로컬 저장
-- `lib/main.dart`, `lib/ui/`: 최초 저울 선택, 추출 화면, 그래프, 설정, 레시피 편집과 보관함
-- `test/`: 프로토콜, 계산, 화면 흐름 검증
-- `packages/bluetooth_low_energy_android/`: 6.1.0 기반 Android 구현과 MIT 라이선스. 연결 우선순위와 알림 대기열을 조정한 로컬 의존성으로, Windows·iOS 구현은 기존 패키지를 사용합니다.
+The [two-drop logo](assets/brand/dot-pour-drops.png) is the source artwork. Its generation tool and prompt are documented in [generation-drops.txt](assets/brand/generation-drops.txt). On Windows, run `powershell -File tool/export-app-icons.ps1` to export Android, iOS, and Windows launcher icons from the source.
 
-두 물방울 로고 원본은 `assets/brand/dot-pour-drops.png`입니다. 생성 도구와 프롬프트는 같은 폴더의 `generation-drops.txt`에 기록했습니다. Windows에서 `powershell -File tool/export-app-icons.ps1`을 실행하면 원본을 보존한 채 Android·iOS·Windows 아이콘 크기로 내보냅니다.
+### Adding a scale adapter
 
-Windows 실행 파일을 전달할 때는 `Release` 폴더 전체가 필요합니다. Android 성능 비교에는 release APK를 사용합니다. 현재 release도 기존 테스트 APK와 같은 개발 키로 서명해 덮어 설치할 수 있으며, 스토어 배포용 서명은 아닙니다.
+1. Implement `CoffeeScale` to handle discovery, connection, packets, commands, and cleanup for the model.
+2. Expose `ScaleDevice` and `ScaleReading` from the adapter. Keep BLE library types and model-specific frames within the adapter. Normalize weight to g and flow to g/s. Set `flow: null` if the scale does not report flow, so the app can calculate it from weight changes.
+3. Set `measurementsReady` after connecting and preparing the unit, then update `lastReading` with each fresh reading. A brew requires a recent valid reading.
+4. Define capacity and support for tare, flow, and battery in `ScaleInfo`. Register the adapter factory in `ScaleRegistry`. Leave permission requests and device connections out of the constructor.
 
-### 저울 구현 추가
+Scale selection, brewing, and recipes use the common interface. The selected model's capacity determines the maximum water target. The test adapter lives in `test/support/` and is excluded from the app's model list.
 
-1. `CoffeeScale`을 구현해 해당 저울의 검색, 연결, 패킷 처리, 명령과 자원 정리를 맡깁니다.
-2. 외부에는 BLE 라이브러리 객체나 전용 프레임 대신 `ScaleDevice`와 `ScaleReading`을 전달합니다. 질량은 g, 유량은 g/s로 정규화하고 유량을 보내지 않는 저울은 `flow: null`로 둡니다. 앱이 무게 변화로 유량을 계산합니다.
-3. 연결·단위 준비 완료 후 `measurementsReady`를 설정하고 새 측정마다 `lastReading`을 갱신합니다. 유효한 최근 측정이 있어야 추출을 시작합니다.
-4. 모델의 최대 용량과 영점·유량·배터리 지원 여부를 `ScaleInfo`에 선언하고 `ScaleRegistry`에 생성 함수를 등록합니다. 생성자에서는 권한이나 실제 연결을 요청하지 않습니다.
+## Verification status
 
-선택 화면, 추출 로직, 레시피에는 도트 구현을 직접 참조하지 않습니다. 목표 물량 제한은 선택한 모델의 용량을 따릅니다. 테스트용 어댑터는 `test/support/`에만 있으며 앱의 선택 목록에는 나타나지 않습니다.
+- `flutter analyze` reported no issues. The test suite covers protocol decoding, calculations, curves, storage, mobile UI, permissions and scan cancellation, weighing and tare, lifting and swirling, zero readings and overloads, response timing, stopped flow, and excluded segments.
+- A Windows release build succeeded with the native BLE plugin DLL. A separate Windows BLE diagnostic confirmed pairing with a TES017, unit-setting responses, and weight notifications. Scale discovery was also confirmed in the app.
+- Physical-device connection was confirmed on a Samsung Galaxy S23. Full brew testing on real hardware and iOS build and device verification remain pending.
+- Mobile layouts were checked at 320 and 390 px for live and target weight, progress, timer, graph, and settings. Widget tests cover the fixed header, progress above the target, hiding demo controls on Android, bottom navigation, and spacing between the keyboard and ratio controls.
 
-## 검증 현황
-
-- `flutter analyze`: 문제 없음
-- `flutter test`: 프로토콜·계산·곡선·저장·모바일 UI, 권한·검색 취소, 계량·영점, 들기·스월링·0g·과부하, 정상 입력 지연·유량 정지, 기록 제외 구간 검증
-- Windows release 빌드: 성공, 네이티브 BLE 플러그인 DLL 포함
-- Android debug/release APK 빌드 환경: JDK 17, NDK 27
-- 320·390px 모바일 크기 화면: 현재/목표 무게, 진행률 바, 타이머, 그래프와 설정 화면 확인. 상단 고정·목표 초과 표시·Android 데모 숨김·하단 내비게이션 바 및 키보드와 비율 설정 버튼 간격을 위젯 테스트로 검증
-- Android S23: 사용자 실기기 연결 확인. Windows PC: 별도 BLE 진단으로 TES017 모델·단위 설정 응답·무게 알림 확인, 앱 검색 확인. 전체 추출 흐름의 실기기 검증과 iOS 빌드·실행은 추가 확인 필요.
-
-서체는 [Pretendard v1.3.9](https://github.com/orioncactus/pretendard/releases/tag/v1.3.9)의 Regular·Medium·SemiBold·Bold 원본을 포함합니다. 라이선스는 `assets/fonts/OFL.txt`에 있으며 앱에도 함께 묶습니다.
+The app bundles Regular, Medium, SemiBold, and Bold from [Pretendard v1.3.9](https://github.com/orioncactus/pretendard/releases/tag/v1.3.9). The [font license](assets/fonts/OFL.txt) is included in the app.

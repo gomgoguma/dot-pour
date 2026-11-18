@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'brew_session.dart';
 import 'dose_preparation.dart';
+import 'l10n/language.dart';
 import 'manual_timer.dart';
 import 'scale_flow.dart';
 import 'scales/scale.dart';
@@ -17,6 +19,8 @@ import 'recipe_store.dart';
 class BrewController extends ChangeNotifier {
   final SharedPreferences preferences;
   static const selectedScaleKey = 'scale.model';
+  AppLocalizations get strings =>
+      (AppLanguage.saved(preferences) ?? AppLanguage.korean).strings;
   final ScaleRegistry scaleRegistry;
   CoffeeScale? _scale;
   CoffeeScale? get scale => _scale;
@@ -80,13 +84,15 @@ class BrewController extends ChangeNotifier {
     try {
       recipes = store.load();
     } catch (_) {
-      notice = '저장된 레시피를 읽지 못했습니다. 기존 데이터는 보존됩니다.';
+      notice = strings.recipeReadError;
     }
     final selected = this.scaleRegistry.find(
       preferences.getString(selectedScaleKey),
     );
     if (selected != null) {
-      _scale = selected.create()..addListener(_onScale);
+      final scale = selected.create();
+      scale.localizations = () => strings;
+      _scale = scale..addListener(_onScale);
     }
     const tickInterval = Duration(milliseconds: 100);
     final tickSeconds = tickInterval.inMilliseconds / 1000;
@@ -143,7 +149,7 @@ class BrewController extends ChangeNotifier {
         );
         _targetAlert();
       } else if (!(_scale?.fresh ?? false)) {
-        interrupt('무게 데이터가 멈췄습니다. 연결을 확인하고 새 추출을 시작해 주세요.');
+        interrupt(strings.weightStopped);
       }
       brew.tick();
       if (!demo && _notifiedSinceTick) {
@@ -165,7 +171,7 @@ class BrewController extends ChangeNotifier {
     _scaleFlow.reset();
     _changed();
     if (!await preferences.setBool('scale.autoStart', enabled)) {
-      notice = '자동 감지 설정을 저장하지 못했습니다.';
+      notice = strings.autoDetectSaveError;
       _changed();
     }
   }
@@ -244,6 +250,7 @@ class BrewController extends ChangeNotifier {
     dose,
     brew.ratio,
     maxWater: _scale?.info.capacityGrams,
+    localizations: strings,
   );
 
   void setDose(double? dose) {
@@ -335,7 +342,7 @@ class BrewController extends ChangeNotifier {
       if (baseline != null) {
         _doseBaseline = before == null ? null : baseline + zero - before;
         if (before == null && _confirmedDose == null) {
-          notice = '원두량을 직접 입력하거나 기구 준비에서 기준 무게를 다시 잡아 주세요.';
+          notice = strings.doseBaselineNeeded;
         }
       }
       _dosePreparation.reset();
@@ -346,7 +353,7 @@ class BrewController extends ChangeNotifier {
         );
       }
     } catch (error) {
-      notice = '영점을 확인하지 못했습니다. ($error)';
+      notice = strings.tareConfirmError(error);
     } finally {
       taring = false;
       _changed();
@@ -358,7 +365,7 @@ class BrewController extends ChangeNotifier {
     void checkZero() {
       if (zeroed.isCompleted) return;
       if (!scale.connected) {
-        zeroed.completeError(StateError('영점 설정 중 연결이 끊겼습니다.'));
+        zeroed.completeError(StateError(strings.tareDisconnected));
       } else if (scale.fresh &&
           !scale.reading!.overloaded &&
           scale.reading!.grams.abs() <= 0.3) {
@@ -432,7 +439,7 @@ class BrewController extends ChangeNotifier {
     }
     if (brew.active) {
       if (!scale.connected || !scale.measurementsReady) {
-        interrupt('연결이 끊겨 추출을 중단했습니다. 다시 연결한 뒤 새로 시작해 주세요.');
+        interrupt(strings.brewDisconnected);
       } else if (newReading) {
         brew.ingestScaleReading(scale.reading!);
         _targetAlert();
@@ -469,6 +476,7 @@ class BrewController extends ChangeNotifier {
       dose,
       ratio,
       maxWater: _scale?.info.capacityGrams,
+      localizations: strings,
     );
     if (error != null) throw ArgumentError(error);
     reference = reference?.scaled(dose, ratio);
@@ -481,7 +489,7 @@ class BrewController extends ChangeNotifier {
   Future<void> configureRatio(double ratio) async {
     if (!setup || starting || taring) return;
     if (!ratio.isFinite || ratio < 1 || ratio > 30) {
-      throw ArgumentError('비율은 1:1~1:30으로 입력해 주세요.');
+      throw ArgumentError(strings.ratioRange);
     }
     if (brew.ratio == ratio) return;
     brew.ratio = ratio;
@@ -493,7 +501,7 @@ class BrewController extends ChangeNotifier {
   Future<void> _saveRatio(double ratio) {
     final saved = _ratioWrite.then((_) async {
       if (!await preferences.setDouble('ratio', ratio)) {
-        throw StateError('비율을 저장하지 못했습니다.');
+        throw StateError(strings.ratioSaveError);
       }
     });
     _ratioWrite = saved.catchError((Object _) {});
@@ -532,7 +540,7 @@ class BrewController extends ChangeNotifier {
       }
       if (_disposed) return;
       if (!demo && !scale.fresh) {
-        throw StateError('추출 시작에 필요한 저울값을 받지 못했습니다.');
+        throw StateError(strings.startReadingMissing);
       }
       reference = reference?.scaled(measuredDose, brew.ratio);
       brew.start(rawGrams: baseline, dose: measuredDose, ratio: brew.ratio);
@@ -545,7 +553,7 @@ class BrewController extends ChangeNotifier {
       _alerted = false;
       _keepAwake(true);
     } catch (e) {
-      notice = '영점을 확인하지 못해 시작하지 않았습니다. 원두 무게를 다시 계량해 주세요. ($e)';
+      notice = strings.startTareError(e);
     } finally {
       starting = false;
     }
@@ -620,6 +628,7 @@ class BrewController extends ChangeNotifier {
       recipe.dose,
       recipe.ratio,
       maxWater: _scale?.info.capacityGrams,
+      localizations: strings,
     );
     if (error != null) throw ArgumentError(error);
     reset();
@@ -636,19 +645,19 @@ class BrewController extends ChangeNotifier {
   }
 
   Future<void> selectScale(String modelId) async {
-    if (!canChangeScale) throw StateError('추출이나 연결 작업을 마친 뒤 저울을 변경해 주세요.');
+    if (!canChangeScale) throw StateError(strings.scaleChangeBusy);
     if (_scale?.info.id == modelId) return;
     final registration = scaleRegistry.find(modelId);
-    if (registration == null) throw ArgumentError('지원하지 않는 저울입니다.');
+    if (registration == null) throw ArgumentError(strings.unsupportedScale);
     changingScale = true;
     _changed();
     CoffeeScale? next;
     try {
-      next = registration.create();
+      next = registration.create()..localizations = () => strings;
       await _scale?.disconnect();
       if (_disposed) return;
       if (!await preferences.setString(selectedScaleKey, modelId)) {
-        throw StateError('저울 선택을 저장하지 못했습니다. 다시 시도해 주세요.');
+        throw StateError(strings.scaleSaveError);
       }
       if (_disposed) return;
       _scale?.removeListener(_onScale);
@@ -672,7 +681,7 @@ class BrewController extends ChangeNotifier {
   }
 
   Future<void> upsertRecipe(BrewRecipe recipe) async {
-    if (libraryBusy) throw StateError('저장 중입니다. 잠시 후 다시 시도해 주세요.');
+    if (libraryBusy) throw StateError(strings.recipeSaveBusy);
     libraryBusy = true;
     _changed();
     try {
@@ -689,7 +698,7 @@ class BrewController extends ChangeNotifier {
     String name, {
     BrewNotes notes = const BrewNotes(),
   }) async {
-    if (!canSave) throw StateError('저장할 새 추출 기록이 없습니다.');
+    if (!canSave) throw StateError(strings.noNewBrew);
     final recipe = brew.toRecipe(name, isDemo: demo, notes: notes);
     await upsertRecipe(recipe);
     savedId = recipe.id;

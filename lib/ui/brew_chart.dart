@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import '../recipe.dart';
 import 'style.dart';
 
@@ -19,8 +21,10 @@ class BrewChart extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) => Semantics(
-    label:
-        '추출 그래프. 가로축 시간, 세로축 질량. 현재 ${seconds.toStringAsFixed(0)}초, ${points.isEmpty ? 0 : points.last.grams.toStringAsFixed(1)}g.',
+    label: context.l10n.chartDescription(
+      seconds.toStringAsFixed(0),
+      points.isEmpty ? 0 : points.last.grams.toStringAsFixed(1),
+    ),
     child: Column(
       children: [
         SizedBox(
@@ -33,6 +37,7 @@ class BrewChart extends StatelessWidget {
               target,
               seconds,
               reference?.duration ?? 0,
+              context.l10n.time,
               Theme.of(
                 context,
               ).textTheme.bodySmall!.copyWith(fontSize: 10, color: muted),
@@ -45,7 +50,10 @@ class BrewChart extends StatelessWidget {
           children: [
             const Icon(Icons.horizontal_rule, color: ink, size: 20),
             const SizedBox(width: 5),
-            const Text('이번 추출', style: TextStyle(color: muted, fontSize: 11)),
+            Text(
+              context.l10n.currentBrew,
+              style: TextStyle(color: muted, fontSize: 11),
+            ),
             if (reference != null) ...[
               const SizedBox(width: 20),
               const Row(
@@ -65,8 +73,8 @@ class BrewChart extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 5),
-              const Text(
-                '레시피 기준',
+              Text(
+                context.l10n.recipeReference,
                 style: TextStyle(color: muted, fontSize: 11),
               ),
             ],
@@ -81,12 +89,14 @@ class _ChartPainter extends CustomPainter {
   final List<BrewPoint> points, reference;
   final double target, seconds, duration;
   final TextStyle labelStyle;
+  final String timeLabel;
   _ChartPainter(
     this.points,
     this.reference,
     this.target,
     this.seconds,
     this.duration,
+    this.timeLabel,
     this.labelStyle,
   );
   @override
@@ -148,7 +158,7 @@ class _ChartPainter extends CustomPainter {
       text(clockText(maxTime * i / 4), Offset(x - 12, bounds.bottom + 9));
     }
     text('g', const Offset(20, 0));
-    text('시간', Offset(bounds.right, 0), right: true);
+    text(timeLabel, Offset(bounds.right, 0), right: true);
     canvas.save();
     canvas.clipRect(bounds);
     if (reference.isNotEmpty) {
@@ -210,5 +220,6 @@ class _ChartPainter extends CustomPainter {
       target != oldDelegate.target ||
       seconds != oldDelegate.seconds ||
       duration != oldDelegate.duration ||
+      timeLabel != oldDelegate.timeLabel ||
       labelStyle != oldDelegate.labelStyle;
 }

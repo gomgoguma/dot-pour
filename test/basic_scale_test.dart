@@ -12,7 +12,10 @@ void main() {
   testWidgets(
     'automatic first pour respects mode, pause, reset, tare and disconnect',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+      SharedPreferences.setMockInitialValues({
+        'app.language': 'ko',
+        'scale.model': 'test',
+      });
       final prefs = await SharedPreferences.getInstance();
       final scale = FakeScale('test', supportsTare: true);
       var now = Duration.zero;
@@ -88,7 +91,10 @@ void main() {
       tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
       tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
       addTearDown(tester.view.reset);
-      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+      SharedPreferences.setMockInitialValues({
+        'app.language': 'ko',
+        'scale.model': 'test',
+      });
       final prefs = await SharedPreferences.getInstance();
       var now = Duration.zero;
       final scale = FakeScale('test', supportsTare: true);

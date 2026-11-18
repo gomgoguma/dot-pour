@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 
 class BrandMark extends StatelessWidget {
   final double size;
@@ -11,7 +12,7 @@ class BrandMark extends StatelessWidget {
       width: size,
       height: size,
       filterQuality: FilterQuality.high,
-      semanticLabel: 'Dot Pour 두 물방울 로고',
+      semanticLabel: context.l10n.logoDescription,
     ),
   );
 }

@@ -15,7 +15,10 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
+    SharedPreferences.setMockInitialValues({
+      'app.language': 'ko',
+      'scale.model': 'timemore-dot',
+    });
     final preferences = await SharedPreferences.getInstance();
     var now = Duration.zero;
     final brew = BrewSession(now: () => now);
@@ -102,7 +105,10 @@ void main() {
       tester.view.viewPadding = const FakeViewPadding(bottom: 48);
       tester.view.padding = const FakeViewPadding(bottom: 48);
       addTearDown(tester.view.reset);
-      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+      SharedPreferences.setMockInitialValues({
+        'app.language': 'ko',
+        'scale.model': 'test',
+      });
       final prefs = await SharedPreferences.getInstance();
       final scale = FakeScale('test', supportsTare: true)..emit(20);
       final controller = BrewController(

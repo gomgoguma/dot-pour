@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../brew_controller.dart';
 import 'style.dart';
@@ -19,7 +20,8 @@ class ScaleStatusSheet extends StatefulWidget {
 }
 
 class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
-  String version = '확인 중';
+  String? version;
+  bool versionUnavailable = false;
 
   @override
   void initState() {
@@ -34,7 +36,7 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
         setState(() => version = '${info.version}+${info.buildNumber}');
       }
     } catch (_) {
-      if (mounted) setState(() => version = '확인 불가');
+      if (mounted) setState(() => versionUnavailable = true);
     }
   }
 
@@ -44,6 +46,11 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
     builder: (context, _) {
       final c = widget.controller;
       final scale = c.scale;
+      final displayVersion =
+          version ??
+          (versionUnavailable
+              ? context.l10n.unavailable
+              : context.l10n.checking);
       if (scale == null) return const SizedBox.shrink();
       return SafeArea(
         child: SingleChildScrollView(
@@ -52,7 +59,7 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SectionLabel('저울 연결'),
+              SectionLabel(context.l10n.scaleConnection),
               Text(
                 scale.info.name,
                 style: const TextStyle(
@@ -63,12 +70,14 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
               const SizedBox(height: 8),
               Text(
                 scale.connected
-                    ? '연결됨${scale.battery == null ? '' : ' · 배터리 ${scale.battery}%'}'
-                    : '연결 해제됨',
+                    ? (scale.battery == null
+                        ? context.l10n.connected
+                        : context.l10n.connectedWithBattery(scale.battery!))
+                    : context.l10n.disconnected,
               ),
               const SizedBox(height: 8),
               Text(
-                'Dot Pour $version',
+                'Dot Pour $displayVersion',
                 style: const TextStyle(color: muted, fontSize: 12),
               ),
               const SizedBox(height: 24),
@@ -84,7 +93,7 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
                           await scale.disconnect();
                           if (context.mounted) Navigator.pop(context);
                         },
-                child: const Text('연결 해제'),
+                child: Text(context.l10n.disconnect),
               ),
             ],
           ),

@@ -1,17 +1,22 @@
 import 'dart:convert';
+import 'l10n/language.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'recipe.dart';
 
 class RecipeStore {
   static const key = 'dot_pour.recipes.v1';
   final SharedPreferences preferences;
+  AppLocalizations get strings =>
+      (AppLanguage.saved(preferences) ?? AppLanguage.korean).strings;
   RecipeStore(this.preferences);
 
   List<BrewRecipe> load() {
     final raw = preferences.getString(key);
     if (raw == null) return [];
     final data = jsonDecode(raw) as Map<String, dynamic>;
-    if (data['version'] != 1) throw const FormatException('지원하지 않는 저장 형식입니다.');
+    if (data['version'] != 1) {
+      throw FormatException(strings.invalidStorageFormat);
+    }
     return (data['recipes'] as List)
         .map((e) => BrewRecipe.fromJson(Map<String, dynamic>.from(e)))
         .toList();
@@ -28,11 +33,11 @@ class RecipeStore {
             '$key.backup.${DateTime.now().microsecondsSinceEpoch}',
             raw,
           )) {
-        throw StateError('기존 레시피를 백업하지 못했습니다.');
+        throw StateError(strings.recipeBackupError);
       }
     }
     for (final recipe in recipes) {
-      final error = recipe.validate();
+      final error = recipe.validate(strings);
       if (error != null) throw FormatException(error);
     }
     if (!await preferences.setString(
@@ -42,7 +47,7 @@ class RecipeStore {
         'recipes': recipes.map((r) => r.toJson()).toList(),
       }),
     )) {
-      throw StateError('레시피를 저장하지 못했습니다.');
+      throw StateError(strings.recipeSaveError);
     }
   }
 }

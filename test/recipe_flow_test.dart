@@ -21,7 +21,10 @@ void main() {
     'finish keeps the result until explicitly saved, then allows replay',
     (tester) async {
       phone(tester);
-      SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
+      SharedPreferences.setMockInitialValues({
+        'app.language': 'ko',
+        'scale.model': 'timemore-dot',
+      });
       final prefs = await SharedPreferences.getInstance();
       var now = Duration.zero;
       final brew = BrewSession(now: () => now);
@@ -165,7 +168,10 @@ void main() {
     'home ratio is editable and updates the target on a narrow phone',
     (tester) async {
       phone(tester, width: 320);
-      SharedPreferences.setMockInitialValues({'scale.model': 'timemore-dot'});
+      SharedPreferences.setMockInitialValues({
+        'app.language': 'ko',
+        'scale.model': 'timemore-dot',
+      });
       final prefs = await SharedPreferences.getInstance();
       final controller = BrewController(prefs)..demo = true;
       controller.setDose(20);

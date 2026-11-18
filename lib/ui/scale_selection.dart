@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import '../brew_controller.dart';
 import 'brand_mark.dart';
 import 'style.dart';
@@ -44,7 +45,7 @@ class _ScaleSelectionScreenState extends State<ScaleSelectionScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       automaticallyImplyLeading: !widget.firstRun,
-      title: Text(widget.firstRun ? 'dot pour' : '저울 선택'),
+      title: Text(widget.firstRun ? 'dot pour' : context.l10n.chooseScale),
     ),
     body: Center(
       child: ConstrainedBox(
@@ -55,14 +56,14 @@ class _ScaleSelectionScreenState extends State<ScaleSelectionScreen> {
             const Center(child: BrandMark(size: 72)),
             const SizedBox(height: 24),
             Text(
-              '저울 모델 선택',
+              context.l10n.chooseScaleModel,
               style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
             Text(
               widget.firstRun
-                  ? '사용할 모델을 선택하세요.\n추출 화면에서 변경할 수 있습니다.'
-                  : '모델 변경 시 기존 연결이 해제됩니다.\n원두량과 저장된 레시피는 유지됩니다.',
+                  ? context.l10n.chooseScaleHint
+                  : context.l10n.changeScaleHint,
               style: const TextStyle(color: muted, height: 1.7),
             ),
             const SizedBox(height: 32),
@@ -105,7 +106,10 @@ class _ScaleSelectionScreenState extends State<ScaleSelectionScreen> {
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
-                                  '${model.info.modelCode} · 최대 ${number(model.info.capacityGrams)}g',
+                                  context.l10n.scaleModelCapacity(
+                                    model.info.modelCode,
+                                    number(model.info.capacityGrams),
+                                  ),
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: muted,
@@ -128,8 +132,8 @@ class _ScaleSelectionScreenState extends State<ScaleSelectionScreen> {
                 ),
               ),
             const SizedBox(height: 8),
-            const Text(
-              '저울 선택 후 블루투스로 연결합니다.',
+            Text(
+              context.l10n.scaleBluetoothHint,
               style: TextStyle(fontSize: 12, color: muted, height: 1.6),
             ),
             if (error != null)
@@ -155,10 +159,10 @@ class _ScaleSelectionScreenState extends State<ScaleSelectionScreen> {
                 onPressed: saving ? null : _select,
                 child: Text(
                   saving
-                      ? '저장 중…'
+                      ? context.l10n.saving
                       : widget.firstRun
-                      ? '이 저울로 시작'
-                      : '이 저울 사용',
+                      ? context.l10n.startWithScale
+                      : context.l10n.useScale,
                 ),
               ),
             ),

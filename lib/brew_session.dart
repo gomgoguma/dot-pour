@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'l10n/language.dart';
 import 'recipe.dart';
 import 'pour_signal.dart';
 import 'scales/scale_models.dart';
@@ -43,15 +44,21 @@ class BrewSession {
       _points.length >= 2 &&
       seconds > 0;
 
-  static String? validate(double dose, double ratio, {double? maxWater}) {
+  static String? validate(
+    double dose,
+    double ratio, {
+    double? maxWater,
+    AppLocalizations? localizations,
+  }) {
+    final strings = localizations ?? AppLanguage.korean.strings;
     if (!dose.isFinite || dose < 0.1 || dose > 100) {
-      return '원두량은 0.1~100g으로 입력해 주세요.';
+      return strings.doseRange;
     }
     if (!ratio.isFinite || ratio < 1 || ratio > 30) {
-      return '비율은 1:1~1:30으로 입력해 주세요.';
+      return strings.ratioRange;
     }
     if (maxWater != null && dose * ratio > maxWater) {
-      return '목표 물의 무게가 선택한 저울의 최대 용량 ${maxWater.toStringAsFixed(0)}g을 넘습니다.';
+      return strings.waterExceedsCapacity(maxWater.toStringAsFixed(0));
     }
     return null;
   }
@@ -63,7 +70,9 @@ class BrewSession {
   }) {
     final error = validate(dose, ratio);
     if (error != null || !rawGrams.isFinite) {
-      throw ArgumentError(error ?? '유효한 저울 값이 필요합니다.');
+      throw ArgumentError(
+        error ?? AppLanguage.korean.strings.validReadingRequired,
+      );
     }
     reset();
     this.dose = dose;
@@ -240,7 +249,7 @@ class BrewSession {
     bool isDemo = false,
     BrewNotes notes = const BrewNotes(),
   }) {
-    if (!canSave) throw StateError('저장할 추출 기록이 없습니다.');
+    if (!canSave) throw StateError(AppLanguage.korean.strings.noBrewToSave);
     final now = DateTime.now();
     return BrewRecipe(
       id: 'brew-${now.microsecondsSinceEpoch}',

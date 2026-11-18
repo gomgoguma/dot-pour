@@ -114,12 +114,12 @@ ThemeData pourTheme() => ThemeData(
     ),
     trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
   ),
-  dialogTheme: DialogTheme(
+  dialogTheme: const DialogThemeData(
     backgroundColor: paper,
     surfaceTintColor: Colors.transparent,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(24),
-      side: const BorderSide(color: line),
+      borderRadius: BorderRadius.all(Radius.circular(24)),
+      side: BorderSide(color: line),
     ),
   ),
   chipTheme: ChipThemeData(

@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'brew_controller.dart';
 import 'brew_session.dart';
+import 'l10n/language.dart';
 import 'ui/brew_chart.dart';
 import 'ui/brew_metrics.dart';
 import 'ui/brand_mark.dart';
@@ -16,6 +18,7 @@ import 'ui/style.dart';
 import 'ui/weighing_panel.dart';
 import 'ui/basic_scale.dart';
 import 'ui/save_recipe_dialog.dart';
+import 'ui/language_picker.dart';
 
 enum _HomeMode { scale, pourOver, espresso }
 
@@ -24,23 +27,72 @@ Future<void> main() async {
   runApp(DotPourApp(preferences: await SharedPreferences.getInstance()));
 }
 
-class DotPourApp extends StatelessWidget {
+class DotPourApp extends StatefulWidget {
   final SharedPreferences preferences;
   final BrewController? controller;
   const DotPourApp({super.key, required this.preferences, this.controller});
+
+  @override
+  State<DotPourApp> createState() => _DotPourAppState();
+}
+
+class _DotPourAppState extends State<DotPourApp> {
+  late AppLanguage? _language = AppLanguage.saved(widget.preferences);
+  late final _deviceLanguage = AppLanguage.forDevice(
+    WidgetsBinding.instance.platformDispatcher.locales,
+  );
+
+  Future<bool> _applyLanguage(AppLanguage language) async {
+    try {
+      if (!await widget.preferences.setString(
+        AppLanguage.preferenceKey,
+        language.code,
+      )) {
+        return false;
+      }
+    } catch (_) {
+      return false;
+    }
+    if (mounted) setState(() => _language = language);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Dot Pour',
     debugShowCheckedModeBanner: false,
     theme: pourTheme(),
-    home: BrewScreen(preferences: preferences, controller: controller),
+    locale: (_language ?? _deviceLanguage).locale,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home:
+        _language == null
+            ? LanguagePicker(
+              initialLanguage: _deviceLanguage,
+              firstRun: true,
+              onApply: _applyLanguage,
+            )
+            : BrewScreen(
+              preferences: widget.preferences,
+              controller: widget.controller,
+              language: _language!,
+              onApplyLanguage: _applyLanguage,
+            ),
   );
 }
 
 class BrewScreen extends StatefulWidget {
   final SharedPreferences preferences;
   final BrewController? controller;
-  const BrewScreen({super.key, required this.preferences, this.controller});
+  final AppLanguage language;
+  final Future<bool> Function(AppLanguage) onApplyLanguage;
+  const BrewScreen({
+    super.key,
+    required this.preferences,
+    this.controller,
+    required this.language,
+    required this.onApplyLanguage,
+  });
   @override
   State<BrewScreen> createState() => _BrewScreenState();
 }
@@ -66,6 +118,17 @@ class _BrewScreenState extends State<BrewScreen> {
     context,
     MaterialPageRoute<void>(
       builder: (_) => ScaleSelectionScreen(controller: c),
+    ),
+  );
+  Future<void> _selectLanguage() => Navigator.push(
+    context,
+    MaterialPageRoute<void>(
+      builder:
+          (_) => LanguagePicker(
+            initialLanguage: widget.language,
+            firstRun: false,
+            onApply: widget.onApplyLanguage,
+          ),
     ),
   );
   Future<void> _save() async {
@@ -168,7 +231,9 @@ class _BrewScreenState extends State<BrewScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            scale.connected ? '연결됨' : '연결',
+                            scale.connected
+                                ? context.l10n.connected
+                                : context.l10n.connect,
                             style: const TextStyle(fontSize: 12),
                           ),
                           if (scale.connected && scale.battery != null) ...[
@@ -176,7 +241,9 @@ class _BrewScreenState extends State<BrewScreen> {
                             Text(
                               '${scale.battery}%',
                               key: const Key('scale-battery'),
-                              semanticsLabel: '저울 배터리 ${scale.battery}%',
+                              semanticsLabel: context.l10n.scaleBattery(
+                                scale.battery!,
+                              ),
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -203,16 +270,22 @@ class _BrewScreenState extends State<BrewScreen> {
                           child: Row(
                             children: [
                               Expanded(
-                                child: _modeTab('Scale', _HomeMode.scale),
+                                child: _modeTab(
+                                  context.l10n.scaleTab,
+                                  _HomeMode.scale,
+                                ),
                               ),
                               Expanded(
                                 child: _modeTab(
-                                  'Pour over',
+                                  context.l10n.pourOverTab,
                                   _HomeMode.pourOver,
                                 ),
                               ),
                               Expanded(
-                                child: _modeTab('Espresso', _HomeMode.espresso),
+                                child: _modeTab(
+                                  context.l10n.espressoTab,
+                                  _HomeMode.espresso,
+                                ),
                               ),
                             ],
                           ),
@@ -255,20 +328,20 @@ class _BrewScreenState extends State<BrewScreen> {
                   _ratioInputValid = true;
                 });
               },
-              destinations: const [
+              destinations: [
                 NavigationDestination(
                   icon: Icon(Icons.water_drop_outlined, size: 22),
                   selectedIcon: Icon(Icons.water_drop, size: 22),
-                  label: '브루잉',
+                  label: context.l10n.brewingTab,
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.menu_book_outlined, size: 22),
                   selectedIcon: Icon(Icons.menu_book_rounded, size: 22),
-                  label: '레시피',
+                  label: context.l10n.recipesTab,
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.tune_rounded, size: 22),
-                  label: '설정',
+                  label: context.l10n.settings,
                 ),
               ],
             ),
@@ -320,18 +393,21 @@ class _BrewScreenState extends State<BrewScreen> {
     );
   }
 
-  Widget _espressoPlaceholder() => const Center(
+  Widget _espressoPlaceholder() => Center(
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.local_cafe_outlined, size: 40, color: copper),
         SizedBox(height: 20),
         Text(
-          'Espresso',
+          context.l10n.espressoTab,
           style: TextStyle(fontSize: 27, fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 8),
-        Text('준비 중', style: TextStyle(color: muted, fontSize: 13)),
+        Text(
+          context.l10n.comingSoon,
+          style: TextStyle(color: muted, fontSize: 13),
+        ),
       ],
     ),
   );
@@ -366,18 +442,26 @@ class _BrewScreenState extends State<BrewScreen> {
                   children: [
                     const Icon(Icons.play_arrow_rounded, size: 20),
                     const SizedBox(width: 8),
-                    Text(c.starting ? '영점 확인 중…' : '추출 시작'),
+                    Text(
+                      c.starting
+                          ? context.l10n.checkingZero
+                          : context.l10n.startBrew,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   c.starting
-                      ? '저울의 영점을 맞추고 있어요'
+                      ? context.l10n.zeroingScale
                       : showConditions
-                      ? '원두 ${number(dose)}g · 1:${number(brew.ratio)} · 물 ${number(dose * brew.ratio)}g'
+                      ? context.l10n.brewStartDetails(
+                        number(dose),
+                        number(brew.ratio),
+                        number(dose * brew.ratio),
+                      )
                       : !_ratioInputValid
-                      ? '비율을 확인해 주세요'
-                      : '원두량을 확인해 주세요',
+                      ? context.l10n.checkRatio
+                      : context.l10n.checkDose,
                   key: const Key('brew-start-conditions'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
@@ -392,7 +476,7 @@ class _BrewScreenState extends State<BrewScreen> {
           FilledButton.icon(
             onPressed: c.finish,
             icon: const Icon(Icons.stop_rounded, size: 18),
-            label: const Text('추출 마치기'),
+            label: Text(context.l10n.finishBrew),
           )
         else
           Row(
@@ -400,7 +484,7 @@ class _BrewScreenState extends State<BrewScreen> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: c.reset,
-                  child: const Text('새 추출'),
+                  child: Text(context.l10n.newBrew),
                 ),
               ),
               const SizedBox(width: 12),
@@ -410,7 +494,11 @@ class _BrewScreenState extends State<BrewScreen> {
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
-                  child: Text(c.savedId != null ? '저장 완료' : '레시피로 저장'),
+                  child: Text(
+                    c.savedId != null
+                        ? context.l10n.saved
+                        : context.l10n.saveAsRecipe,
+                  ),
                 ),
               ),
             ],
@@ -419,7 +507,7 @@ class _BrewScreenState extends State<BrewScreen> {
           TextButton(
             onPressed: c.canChangeScale ? c.toggleDemo : null,
             child: Text(
-              c.demo ? '실제 저울로 전환' : '저울 없이 데모로 체험',
+              c.demo ? context.l10n.switchToScale : context.l10n.tryDemo,
               style: const TextStyle(fontSize: 11, color: muted),
             ),
           ),
@@ -455,7 +543,7 @@ class _BrewScreenState extends State<BrewScreen> {
                     ),
                     if (c.setup)
                       IconButton(
-                        tooltip: '레시피 해제',
+                        tooltip: context.l10n.clearRecipe,
                         onPressed: c.clearRecipe,
                         icon: const Icon(Icons.close, size: 16),
                       ),
@@ -487,8 +575,12 @@ class _BrewScreenState extends State<BrewScreen> {
                               spacing: 8,
                               runSpacing: 6,
                               children: [
-                                _brewChip('원두 ${number(brew.dose)}g'),
-                                _brewChip('비율 1:${number(brew.ratio)}'),
+                                _brewChip(
+                                  context.l10n.doseChip(number(brew.dose)),
+                                ),
+                                _brewChip(
+                                  context.l10n.ratioChip(number(brew.ratio)),
+                                ),
                               ],
                             ),
                           ),
@@ -503,8 +595,11 @@ class _BrewScreenState extends State<BrewScreen> {
                                   !c.demo &&
                                           scale.fresh &&
                                           scale.reading?.overloaded == true
-                                      ? '저울 용량 초과'
-                                      : '저울 ${c.currentGrams?.toStringAsFixed(1) ?? '—'} g',
+                                      ? context.l10n.scaleOverload
+                                      : context.l10n.liveScaleChip(
+                                        c.currentGrams?.toStringAsFixed(1) ??
+                                            '—',
+                                      ),
                                   key: const Key('brew-live-weight'),
                                   textAlign: TextAlign.end,
                                   style: const TextStyle(
@@ -541,8 +636,8 @@ class _BrewScreenState extends State<BrewScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SectionLabel(
-                        '추출 흐름',
+                      SectionLabel(
+                        context.l10n.brewFlow,
                         trailing: Icon(
                           Icons.show_chart_rounded,
                           color: copper,
@@ -575,15 +670,17 @@ class _BrewScreenState extends State<BrewScreen> {
                   alignment: WrapAlignment.spaceBetween,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    const Text(
-                      '데모',
+                    Text(
+                      context.l10n.demo,
                       style: TextStyle(fontSize: 11, color: muted),
                     ),
                     if (brew.phase == BrewPhase.pouring)
                       TextButton(
                         onPressed: c.toggleDemoLift,
                         child: Text(
-                          c.demoLifted ? '기구 놓기' : '기구 들기',
+                          c.demoLifted
+                              ? context.l10n.replaceEquipment
+                              : context.l10n.liftEquipment,
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -591,10 +688,10 @@ class _BrewScreenState extends State<BrewScreen> {
                       onPressed: c.demoLifted ? null : c.toggleDemoPour,
                       child: Text(
                         c.demoAuto
-                            ? '붓기 멈춤'
+                            ? context.l10n.stopPour
                             : c.reference != null
-                            ? '가이드 따라 붓기'
-                            : '자동으로 붓기',
+                            ? context.l10n.followRecipe
+                            : context.l10n.autoPour,
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -644,21 +741,21 @@ class _BrewScreenState extends State<BrewScreen> {
       child: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const Text(
-            '설정',
+          Text(
+            context.l10n.settings,
             style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 28),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.bluetooth, size: 22),
-            title: const Text('저울 연결'),
+            title: Text(context.l10n.scaleConnection),
             subtitle: Text(
               c.demo
-                  ? '데모 사용 중'
+                  ? context.l10n.demoActive
                   : c.scale!.connected
-                  ? '연결됨'
-                  : '연결 안 됨',
+                  ? context.l10n.connected
+                  : context.l10n.notConnected,
             ),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap:
@@ -675,7 +772,7 @@ class _BrewScreenState extends State<BrewScreen> {
             key: const Key('change-scale'),
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.scale_outlined, size: 22),
-            title: const Text('저울 모델'),
+            title: Text(context.l10n.scaleModel),
             subtitle: Text(c.scale!.info.name),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: c.canChangeScale ? _selectScale : null,
@@ -684,12 +781,22 @@ class _BrewScreenState extends State<BrewScreen> {
             const Divider(),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('데모 모드'),
-              subtitle: const Text('저울 없이 브루잉 체험'),
+              title: Text(context.l10n.demoMode),
+              subtitle: Text(context.l10n.demoDescription),
               value: c.demo,
               onChanged: c.canChangeScale ? (_) => c.toggleDemo() : null,
             ),
           ],
+          const Divider(),
+          ListTile(
+            key: const Key('change-language'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.language_rounded, size: 22),
+            title: Text(context.l10n.language),
+            subtitle: Text(widget.language.nameInLanguage),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: _selectLanguage,
+          ),
           const Divider(),
           const SizedBox(height: 16),
           FutureBuilder<PackageInfo>(
@@ -711,12 +818,15 @@ class _BrewScreenState extends State<BrewScreen> {
     final guide = c.guide!;
     final title =
         guide.recipe.steps.isEmpty
-            ? '기록된 곡선을 따라 부어 주세요'
+            ? context.l10n.followCurve
             : guide.step == null
-            ? '물 붓기 완료 · 추출 대기'
+            ? context.l10n.pouringDone
             : guide.waiting
-            ? '${guide.stepIndex + 1}차까지 ${number(guide.step!.start - guide.seconds, 0)}초'
-            : '${guide.stepIndex + 1}차 붓기';
+            ? context.l10n.nextPourIn(
+              guide.stepIndex + 1,
+              number(guide.step!.start - guide.seconds, 0),
+            )
+            : context.l10n.pourNumber(guide.stepIndex + 1);
     final difference = guide.difference;
     return Container(
       padding: const EdgeInsets.all(16),
@@ -750,17 +860,24 @@ class _BrewScreenState extends State<BrewScreen> {
           const SizedBox(height: 12),
           if (guide.step != null)
             Text(
-              '누적 ${number(guide.stepTarget)}g까지 · ${number(guide.targetFlow)}g/s로 붓기',
+              context.l10n.guidePourTarget(
+                number(guide.stepTarget),
+                number(guide.targetFlow),
+              ),
               style: const TextStyle(fontSize: 13),
             ),
           if (guide.step == null)
             Text(
-              '레시피 종료 ${clockText(guide.recipe.duration)}',
+              context.l10n.recipeEndsAt(clockText(guide.recipe.duration)),
               style: const TextStyle(fontSize: 13),
             ),
           const SizedBox(height: 6),
           Text(
-            '지금 기준 ${number(guide.expected)}g  ·  ${difference >= 0 ? '+' : ''}${number(difference)}g 차이',
+            context.l10n.guideDifference(
+              number(guide.expected),
+              difference >= 0 ? '+' : '',
+              number(difference),
+            ),
             style: const TextStyle(fontSize: 11, color: muted),
           ),
           if (guide.recipe.steps.isNotEmpty) ...[

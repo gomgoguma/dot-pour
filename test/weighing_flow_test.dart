@@ -20,6 +20,7 @@ Future<({BrewController c, FakeScale scale})> openPour(
   tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({
+    'app.language': 'ko',
     'scale.model': 'test',
     'ratio': ratio,
   });

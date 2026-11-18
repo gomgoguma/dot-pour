@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import 'style.dart';
 
 const _ratioPresetGroups = [
@@ -43,6 +45,7 @@ class _RatioPresets extends StatelessWidget {
                     if (j > 0) const SizedBox(width: 5),
                     Expanded(
                       child: _preset(
+                        context,
                         _ratioPresetGroups[i].ratios[j],
                         _ratioPresetGroups[i].label,
                       ),
@@ -57,10 +60,10 @@ class _RatioPresets extends StatelessWidget {
     ],
   );
 
-  Widget _preset(double ratio, String group) {
+  Widget _preset(BuildContext context, double ratio, String group) {
     final selected = selectedRatio == ratio;
     return Semantics(
-      label: '$group 비율 1:${number(ratio)}',
+      label: context.l10n.ratioPresetLabel(group, number(ratio)),
       selected: selected,
       button: true,
       child: Material(
@@ -123,7 +126,7 @@ class DoseRatioFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionLabel('추출 기준'),
+        SectionLabel(context.l10n.brewParameters),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -138,8 +141,8 @@ class DoseRatioFields extends StatelessWidget {
                   fontSize: 25,
                   fontWeight: FontWeight.w600,
                 ),
-                decoration: const InputDecoration(
-                  labelText: '원두량',
+                decoration: InputDecoration(
+                  labelText: context.l10n.dose,
                   suffixText: 'g',
                 ),
                 onChanged: (_) => onChanged(),
@@ -157,8 +160,8 @@ class DoseRatioFields extends StatelessWidget {
                   fontSize: 25,
                   fontWeight: FontWeight.w600,
                 ),
-                decoration: const InputDecoration(
-                  labelText: '원두 : 물',
+                decoration: InputDecoration(
+                  labelText: context.l10n.coffeeWater,
                   prefixText: '1 : ',
                 ),
                 onChanged: (_) => onChanged(),
@@ -170,25 +173,30 @@ class DoseRatioFields extends StatelessWidget {
         Row(
           children: [
             IconButton.outlined(
-              tooltip: '원두 1g 줄이기',
+              tooltip: context.l10n.reduceDose,
               onPressed: () => adjust(-1),
               icon: const Icon(Icons.remove, size: 16),
             ),
             const SizedBox(width: 8),
             IconButton.outlined(
-              tooltip: '원두 1g 늘리기',
+              tooltip: context.l10n.increaseDose,
               onPressed: () => adjust(1),
               icon: const Icon(Icons.add, size: 16),
             ),
             const Spacer(),
             Text(
-              target.isFinite ? '목표 ${number(target)} g' : '목표 — g',
+              target.isFinite
+                  ? context.l10n.targetGramsSpaced(number(target))
+                  : context.l10n.noTargetGrams,
               style: const TextStyle(color: muted, fontWeight: FontWeight.w500),
             ),
           ],
         ),
         const SizedBox(height: 20),
-        const Text('자주 쓰는 비율', style: TextStyle(color: muted, fontSize: 12)),
+        Text(
+          context.l10n.ratioPresets,
+          style: TextStyle(color: muted, fontSize: 12),
+        ),
         const SizedBox(height: 10),
         _RatioPresets(
           selectedRatio: parseNumber(ratio.text),
@@ -286,7 +294,7 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
       await widget.onChanged(ratio);
     } catch (_) {
       if (mounted && _parse(_input.text) == ratio) {
-        setState(() => _saveError = '비율을 저장하지 못했습니다.');
+        setState(() => _saveError = context.l10n.ratioSaveError);
       }
     }
   }
@@ -313,7 +321,7 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
 
   @override
   Widget build(BuildContext context) {
-    final error = _valid ? _saveError : '비율은 1:1~1:30으로 입력해 주세요.';
+    final error = _valid ? _saveError : context.l10n.ratioRange;
     return SurfaceCard(
       padding: const EdgeInsets.all(14),
       child: TextFieldTapRegion(
@@ -322,16 +330,16 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '추출 비율',
+                    context.l10n.brewRatio,
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                 ),
                 Text(
                   widget.target == null
-                      ? '목표 —'
-                      : '목표 ${number(widget.target!)}g',
+                      ? context.l10n.noTarget
+                      : context.l10n.targetGrams(number(widget.target!)),
                   style: TextStyle(
                     color: widget.target == null ? muted : copperText,
                     fontSize: 14,
@@ -349,7 +357,7 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
                   IconButton.outlined(
                     key: const Key('decrease-ratio'),
                     style: circleControlStyle(),
-                    tooltip: '비율 0.5 줄이기',
+                    tooltip: context.l10n.reduceRatio,
                     onPressed:
                         widget.enabled && widget.ratio > _minimum
                             ? () => _adjust(-_step)
@@ -408,8 +416,8 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
                             ),
                           ],
                         ),
-                        const Text(
-                          '원두 : 물',
+                        Text(
+                          context.l10n.coffeeWater,
                           style: TextStyle(fontSize: 10, color: muted),
                         ),
                       ],
@@ -418,7 +426,7 @@ class _BrewRatioInputState extends State<BrewRatioInput> {
                   IconButton.outlined(
                     key: const Key('increase-ratio'),
                     style: circleControlStyle(),
-                    tooltip: '비율 0.5 늘리기',
+                    tooltip: context.l10n.increaseRatio,
                     onPressed:
                         widget.enabled && widget.ratio < _maximum
                             ? () => _adjust(_step)

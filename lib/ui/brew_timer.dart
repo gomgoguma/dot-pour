@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import '../brew_session.dart';
 import 'style.dart';
 
@@ -16,14 +17,15 @@ class BrewTimer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = switch (phase) {
-      BrewPhase.setup => '시작 대기',
-      BrewPhase.ready => '첫 물줄기 대기',
-      BrewPhase.pouring => reached ? '목표 도달' : '추출 중',
-      BrewPhase.finished => '추출 완료',
-      BrewPhase.interrupted => '추출 중단',
+      BrewPhase.setup => context.l10n.readyToStart,
+      BrewPhase.ready => context.l10n.waitingFirstPour,
+      BrewPhase.pouring =>
+        reached ? context.l10n.targetReached : context.l10n.brewInProgress,
+      BrewPhase.finished => context.l10n.brewFinished,
+      BrewPhase.interrupted => context.l10n.brewInterrupted,
     };
     return Semantics(
-      label: '추출 시간 ${clockText(seconds)}, $status',
+      label: context.l10n.brewTimeStatus(clockText(seconds), status),
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'l10n/language.dart';
 
 enum PourUnit { grams, percent }
 
@@ -77,12 +78,13 @@ class BrewNotes {
       acidity == 0 &&
       sweetness == 0 &&
       body == 0;
-  String? validate() {
+  String? validate([AppLocalizations? localizations]) {
+    final strings = localizations ?? AppLanguage.korean.strings;
     if (beans.length > 100 || memo.length > 1000) {
-      return '원두는 100자, 메모는 1,000자 이내로 입력해 주세요.';
+      return strings.notesLengthError;
     }
     if ([acidity, sweetness, body].any((n) => n < 0 || n > 5)) {
-      return '별점은 1~5점으로 선택해 주세요.';
+      return strings.ratingRange;
     }
     return null;
   }
@@ -208,11 +210,12 @@ class BrewRecipe {
     );
   }
 
-  String? validate() {
-    final notesError = notes.validate();
+  String? validate([AppLocalizations? localizations]) {
+    final strings = localizations ?? AppLanguage.korean.strings;
+    final notesError = notes.validate(strings);
     if (notesError != null) return notesError;
     if (name.trim().isEmpty || name.length > 60) {
-      return '레시피 이름을 1~60자로 입력해 주세요.';
+      return strings.recipeNameLength;
     }
     if (!dose.isFinite ||
         dose < 0.1 ||
@@ -220,27 +223,27 @@ class BrewRecipe {
         !ratio.isFinite ||
         ratio < 1 ||
         ratio > 30) {
-      return '원두량은 0.1~100g, 비율은 1:1~1:30으로 입력해 주세요.';
+      return strings.recipeDoseRatioRange;
     }
-    if (!duration.isFinite || duration <= 0) return '총 추출시간을 입력해 주세요.';
-    if (steps.isEmpty && !recorded) return '붓기 단계를 하나 이상 추가해 주세요.';
-    if (!recorded && steps.first.start != 0) return '첫 붓기는 0초부터 시작해 주세요.';
+    if (!duration.isFinite || duration <= 0) return strings.brewTimeRequired;
+    if (steps.isEmpty && !recorded) return strings.pourRequired;
+    if (!recorded && steps.first.start != 0) return strings.firstPourAtZero;
     double previousEnd = 0;
     for (final step in steps) {
       if (![step.start, step.duration, step.amount].every((n) => n.isFinite) ||
           step.start < previousEnd - 0.001 ||
           step.duration <= 0 ||
           step.amount <= 0) {
-        return '차수의 시작 시간·붓는 시간·물의 무게를 확인해 주세요. 시간은 겹칠 수 없습니다.';
+        return strings.invalidPourSteps;
       }
       previousEnd = step.end;
     }
-    if (duration < previousEnd) return '총 추출시간은 마지막 붓기 종료 이후여야 합니다.';
+    if (duration < previousEnd) return strings.brewTimeTooShort;
     if (!recorded &&
         (plannedGrams - target).abs() > math.max(0.2, target * 0.001)) {
       return unit == PourUnit.percent
-          ? '차수별 비율의 합계를 100%로 맞춰 주세요.'
-          : '차수별 물의 무게 합계를 목표와 맞춰 주세요.';
+          ? strings.pourPercentTotal
+          : strings.pourWeightTotal;
     }
     double previousTime = -1;
     for (final point in trace) {
@@ -250,7 +253,7 @@ class BrewRecipe {
           point.grams < 0 ||
           point.flow < 0 ||
           point.seconds > duration + 0.1) {
-        return '추출 기록의 시간 또는 무게가 올바르지 않습니다.';
+        return strings.invalidBrewRecord;
       }
       previousTime = point.seconds;
     }

@@ -1,0 +1,7 @@
+arb-dir: lib/l10n
+output-dir: lib/l10n/generated
+template-arb-file: app_en.arb
+synthetic-package: false
+preferred-supported-locales:
+  - ko
+untranslated-messages-file: .dart_tool/untranslated_messages.json

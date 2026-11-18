@@ -1,0 +1,662 @@
+{
+  "@@locale": "en",
+  "recipeReadError": "Could not read saved recipes. Existing data is preserved.",
+  "weightStopped": "Weight readings stopped. Check the connection and start a new brew.",
+  "autoDetectSaveError": "Could not save the auto-start setting.",
+  "doseBaselineNeeded": "Enter the dose manually or reset the equipment baseline.",
+  "tareConfirmError": "Could not confirm zero. ({error})",
+  "@tareConfirmError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "tareDisconnected": "Disconnected while taring.",
+  "brewDisconnected": "Connection lost. Reconnect to start a new brew.",
+  "ratioRange": "Enter a ratio from 1:1 to 1:30.",
+  "ratioSaveError": "Could not save the ratio.",
+  "startReadingMissing": "No scale reading received to start the brew.",
+  "startTareError": "Could not confirm zero. Weigh the coffee again. ({error})",
+  "@startTareError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "scaleChangeBusy": "Finish brewing or connecting before changing scales.",
+  "unsupportedScale": "Unsupported scale.",
+  "scaleSaveError": "Could not save the scale selection. Try again.",
+  "recipeSaveBusy": "Saving. Try again in a moment.",
+  "noNewBrew": "No new brew to save.",
+  "doseRange": "Enter a dose from 0.1 to 100 g.",
+  "waterExceedsCapacity": "The water target exceeds the scale capacity of {capacity} g.",
+  "@waterExceedsCapacity": {
+    "placeholders": {
+      "capacity": {
+        "type": "Object"
+      }
+    }
+  },
+  "validReadingRequired": "A valid scale reading is required.",
+  "noBrewToSave": "No brew to save.",
+  "connected": "Connected",
+  "connect": "Connect",
+  "scaleBattery": "Scale battery {battery}%",
+  "@scaleBattery": {
+    "placeholders": {
+      "battery": {
+        "type": "Object"
+      }
+    }
+  },
+  "brewingTab": "Brew",
+  "recipesTab": "Recipes",
+  "settings": "Settings",
+  "comingSoon": "Coming soon",
+  "checkingZero": "Checking zero…",
+  "startBrew": "Start brew",
+  "zeroingScale": "Taring the scale",
+  "brewStartDetails": "Coffee {dose} g · 1:{ratio} · Water {water} g",
+  "@brewStartDetails": {
+    "placeholders": {
+      "dose": {
+        "type": "Object"
+      },
+      "ratio": {
+        "type": "Object"
+      },
+      "water": {
+        "type": "Object"
+      }
+    }
+  },
+  "checkRatio": "Check the ratio",
+  "checkDose": "Check the dose",
+  "finishBrew": "Finish brew",
+  "newBrew": "New brew",
+  "saved": "Saved",
+  "saveAsRecipe": "Save as recipe",
+  "switchToScale": "Switch to real scale",
+  "tryDemo": "Try without a scale",
+  "clearRecipe": "Remove recipe",
+  "doseChip": "Coffee {dose} g",
+  "@doseChip": {
+    "placeholders": {
+      "dose": {
+        "type": "Object"
+      }
+    }
+  },
+  "ratioChip": "Ratio 1:{ratio}",
+  "@ratioChip": {
+    "placeholders": {
+      "ratio": {
+        "type": "Object"
+      }
+    }
+  },
+  "scaleOverload": "Scale overload",
+  "liveScaleChip": "Scale {weight} g",
+  "@liveScaleChip": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      }
+    }
+  },
+  "brewFlow": "Brew graph",
+  "demo": "Demo",
+  "replaceEquipment": "Set equipment down",
+  "liftEquipment": "Lift equipment",
+  "stopPour": "Stop pouring",
+  "followRecipe": "Follow recipe",
+  "autoPour": "Auto pour",
+  "scaleConnection": "Scale connection",
+  "demoActive": "Demo active",
+  "notConnected": "Not connected",
+  "scaleModel": "Scale model",
+  "demoMode": "Demo mode",
+  "demoDescription": "Brew without a scale",
+  "followCurve": "Follow the recorded curve",
+  "pouringDone": "Pouring complete · Wait for brew",
+  "nextPourIn": "Pour {pour} in {seconds} s",
+  "@nextPourIn": {
+    "placeholders": {
+      "pour": {
+        "type": "Object"
+      },
+      "seconds": {
+        "type": "Object"
+      }
+    }
+  },
+  "pourNumber": "Pour {pour}",
+  "@pourNumber": {
+    "placeholders": {
+      "pour": {
+        "type": "Object"
+      }
+    }
+  },
+  "guidePourTarget": "Pour to {weight} g at {flow} g/s",
+  "@guidePourTarget": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      },
+      "flow": {
+        "type": "Object"
+      }
+    }
+  },
+  "recipeEndsAt": "Recipe ends at {time}",
+  "@recipeEndsAt": {
+    "placeholders": {
+      "time": {
+        "type": "Object"
+      }
+    }
+  },
+  "guideDifference": "Target now {weight} g · Difference {sign}{difference} g",
+  "@guideDifference": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      },
+      "sign": {
+        "type": "Object"
+      },
+      "difference": {
+        "type": "Object"
+      }
+    }
+  },
+  "notesLengthError": "Use up to 100 characters for coffee and 1,000 for notes.",
+  "ratingRange": "Choose a rating from 1 to 5 stars.",
+  "recipeNameLength": "Enter a recipe name of 1 to 60 characters.",
+  "recipeDoseRatioRange": "Use a dose of 0.1–100 g and a ratio of 1:1–1:30.",
+  "brewTimeRequired": "Enter the total brew time.",
+  "pourRequired": "Add at least one pour.",
+  "firstPourAtZero": "The first pour must start at 0 seconds.",
+  "invalidPourSteps": "Check start times, durations, and water amounts. Pours cannot overlap.",
+  "brewTimeTooShort": "Total brew time must include the last pour.",
+  "pourPercentTotal": "The pour percentages must add up to 100%.",
+  "pourWeightTotal": "The pour weights must add up to the water target.",
+  "invalidBrewRecord": "Invalid time or weight in the brew record.",
+  "invalidStorageFormat": "Unsupported storage format.",
+  "recipeBackupError": "Could not back up existing recipes.",
+  "recipeSaveError": "Could not save the recipe.",
+  "scanningNearby": "Scanning nearby devices",
+  "scanIdle": "Ready to scan",
+  "unnamedDevice": "Unnamed BLE device",
+  "bluetoothDisconnected": "Bluetooth disconnected.",
+  "scanPermissionLost": "Scan stopped because Bluetooth or its permission was turned off.",
+  "dotDisconnected": "Dot disconnected. Reconnect to continue.",
+  "scaleUnitMismatch": "The scale is not set to grams. Reconnect it.",
+  "initializingBluetooth": "Starting Bluetooth",
+  "checkingNearbyPermission": "Checking Nearby devices permission",
+  "grantNearbyPermission": "Allow Nearby devices in the app settings.",
+  "bleUnsupported": "This device does not support Bluetooth LE.",
+  "grantBluetoothPermission": "Allow Bluetooth access for this app.",
+  "enableBluetooth": "Turn on Bluetooth and scan again.",
+  "startingScan": "Starting scan",
+  "scanningDot": "Looking for the Dot scale",
+  "scanTimeout": "Timed out at this step: {status}. Reopen the app and check permissions.",
+  "@scanTimeout": {
+    "placeholders": {
+      "status": {
+        "type": "Object"
+      }
+    }
+  },
+  "scanError": "Scan failed: {error}",
+  "@scanError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "scanStartError": "Could not start scanning",
+  "scanEnded": "Scan ended",
+  "scanStopError": "Could not stop the scan: {error}",
+  "@scanStopError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "deviceNotFound": "Device no longer in the scan results. Scan again.",
+  "checkingWindowsPairing": "Checking Windows pairing",
+  "dotServiceMissing": "Could not find the Dot BLE service.",
+  "scaleModelUnsupported": "Unsupported scale model: {model}",
+  "@scaleModelUnsupported": {
+    "placeholders": {
+      "model": {
+        "type": "Object"
+      }
+    }
+  },
+  "cannotConfirmUnit": "Could not confirm that the scale is set to grams.",
+  "connectError": "Connection failed: {error}",
+  "@connectError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "noConnectedScale": "No scale is connected.",
+  "tareRejected": "The scale rejected the tare command.",
+  "tareError": "Tare failed: {error}",
+  "@tareError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "liveWeight": "Live weight",
+  "overCapacity": "Overload",
+  "flowPrefix": "Flow ",
+  "waitingScaleReading": "Waiting for a scale reading.",
+  "connectScalePeriod": "Connect the scale.",
+  "tareButton": "Zero scale (TARE)",
+  "timer": "Timer",
+  "autoDetectPour": "Auto-start on pour",
+  "timerRunning": "Timer running",
+  "resumeTimerHint": "Tap Resume to keep timing",
+  "pourFromZero": "Start pouring from 0 g",
+  "manualTimerHint": "Start and stop the timer manually",
+  "reset": "Reset",
+  "pause": "Pause",
+  "resume": "Resume",
+  "start": "Start",
+  "logoDescription": "Dot Pour two-drop logo",
+  "chartDescription": "Brew chart, time by weight. Current reading {seconds} seconds, {weight} g.",
+  "@chartDescription": {
+    "placeholders": {
+      "seconds": {
+        "type": "Object"
+      },
+      "weight": {
+        "type": "Object"
+      }
+    }
+  },
+  "currentBrew": "This brew",
+  "recipeReference": "Recipe reference",
+  "time": "Time",
+  "waterPoured": "Water poured",
+  "waitingStableWeight": "Waiting for stable weight",
+  "waterAndTarget": "Water poured {water} g, target {target} g",
+  "@waterAndTarget": {
+    "placeholders": {
+      "water": {
+        "type": "Object"
+      },
+      "target": {
+        "type": "Object"
+      }
+    }
+  },
+  "targetLine": "Target\n",
+  "progress": "Progress",
+  "progressTowardTarget": "Progress toward water target",
+  "ratioPresetLabel": "{group} ratio 1:{ratio}",
+  "@ratioPresetLabel": {
+    "placeholders": {
+      "group": {
+        "type": "Object"
+      },
+      "ratio": {
+        "type": "Object"
+      }
+    }
+  },
+  "brewParameters": "Brew settings",
+  "dose": "Coffee dose",
+  "coffeeWater": "Coffee : Water",
+  "reduceDose": "Reduce dose by 1 g",
+  "increaseDose": "Increase dose by 1 g",
+  "targetGramsSpaced": "Target {weight} g",
+  "@targetGramsSpaced": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      }
+    }
+  },
+  "noTargetGrams": "Target — g",
+  "ratioPresets": "Ratio presets",
+  "brewRatio": "Brew ratio",
+  "noTarget": "Target —",
+  "targetGrams": "Target {weight} g",
+  "@targetGrams": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      }
+    }
+  },
+  "reduceRatio": "Reduce ratio by 0.5",
+  "increaseRatio": "Increase ratio by 0.5",
+  "readyToStart": "Ready to start",
+  "waitingFirstPour": "Waiting for the first pour",
+  "targetReached": "Target reached",
+  "brewInProgress": "Brewing",
+  "brewFinished": "Brew complete",
+  "brewInterrupted": "Brew interrupted",
+  "brewTimeStatus": "Brew time {time}, {status}",
+  "@brewTimeStatus": {
+    "placeholders": {
+      "time": {
+        "type": "Object"
+      },
+      "status": {
+        "type": "Object"
+      }
+    }
+  },
+  "connectModel": "Connect to {model}",
+  "@connectModel": {
+    "placeholders": {
+      "model": {
+        "type": "Object"
+      }
+    }
+  },
+  "scaleScanHint": "Turn on the scale and close any app connected to it.",
+  "searchingScale": "Looking for the scale…",
+  "noModelFound": "No {model} scale found.\nTurn it on and scan again.",
+  "@noModelFound": {
+    "placeholders": {
+      "model": {
+        "type": "Object"
+      }
+    }
+  },
+  "scanAgain": "Scan again",
+  "openPermissions": "Open app permissions",
+  "planFromName": "{name} plan",
+  "@planFromName": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "doseAndRatioFirst": "Enter the dose and ratio first.",
+  "saveError": "Save failed: {error}",
+  "@saveError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "createRecipe": "Create recipe",
+  "planFromBrew": "Create plan from brew",
+  "editRecipe": "Edit recipe",
+  "saving": "Saving…",
+  "saveRecipe": "Save recipe",
+  "recipeName": "Recipe name",
+  "recipeNameExample": "E.g. Morning three-pour",
+  "pourPlan": "Pour plan · {count}",
+  "@pourPlan": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "splitEvenly": "Split evenly",
+  "weightUnit": "Weight · g",
+  "percentUnit": "Ratio · %",
+  "pourPercentHint": "Enter the percentage added per pour. The total must be 100%.",
+  "pourWeightHint": "Enter the water weight added per pour.",
+  "firstPour": "First pour",
+  "removePour": "Remove pour {pour}",
+  "@removePour": {
+    "placeholders": {
+      "pour": {
+        "type": "Object"
+      }
+    }
+  },
+  "pourStartSeconds": "Start · s",
+  "pourDurationSeconds": "Duration · s",
+  "pourAddPercent": "Add · %",
+  "pourAddGrams": "Add · g",
+  "addPour": "Add pour",
+  "pourPlanTotal": "Total {total} g / Target {target} g",
+  "@pourPlanTotal": {
+    "placeholders": {
+      "total": {
+        "type": "Object"
+      },
+      "target": {
+        "type": "Object"
+      }
+    }
+  },
+  "totalBrewTime": "Total brew time",
+  "secondsUnit": "s",
+  "totalBrewTimeHint": "Includes the wait after the last pour.",
+  "previewPlan": "Plan preview",
+  "myRecipes": "My recipes",
+  "createManualRecipe": "Create manual recipe",
+  "noRecipes": "No saved recipes",
+  "noRecipesHint": "Create a recipe or save a finished brew.",
+  "recipesCount": "Recipes ({count}) · On this device",
+  "@recipesCount": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "demoRecord": "Demo record",
+  "brewRecord": "Brew record",
+  "manualPlan": "Manual plan",
+  "recipeSummary": "{dose} g · 1:{ratio} · Pours: {pours} · {time}",
+  "@recipeSummary": {
+    "placeholders": {
+      "dose": {
+        "type": "Object"
+      },
+      "ratio": {
+        "type": "Object"
+      },
+      "pours": {
+        "type": "Object"
+      },
+      "time": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteRecipe": "Delete recipe",
+  "deleteRecipeQuestion": "Delete this recipe?",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "deleteError": "Delete failed: {error}",
+  "@deleteError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "finishActiveBrew": "Finish the current brew first",
+  "brewThisRecipe": "Brew this recipe",
+  "recipeDetails": "{dose} g · 1:{ratio} · Target {target} g · {time}",
+  "@recipeDetails": {
+    "placeholders": {
+      "dose": {
+        "type": "Object"
+      },
+      "ratio": {
+        "type": "Object"
+      },
+      "target": {
+        "type": "Object"
+      },
+      "time": {
+        "type": "Object"
+      }
+    }
+  },
+  "brewCurve": "Brew curve",
+  "pourCount": "Number of pours: {count}",
+  "@pourCount": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "recordedPourHint": "Pour stages are estimated from weight changes. The reference uses the saved curve.",
+  "pourAmount": "Add {weight} g · {percent}%",
+  "@pourAmount": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      },
+      "percent": {
+        "type": "Object"
+      }
+    }
+  },
+  "pourCumulative": "Total {weight} g",
+  "@pourCumulative": {
+    "placeholders": {
+      "weight": {
+        "type": "Object"
+      }
+    }
+  },
+  "manualPlanFromBrew": "Create manual plan from this brew",
+  "datedBrewName": "Brew · {month}/{day}",
+  "@datedBrewName": {
+    "placeholders": {
+      "month": {
+        "type": "Object"
+      },
+      "day": {
+        "type": "Object"
+      }
+    }
+  },
+  "nameRequired": "Enter a name.",
+  "saveRetry": "Could not save. Try again.",
+  "demoRecordSuffix": " · Demo record",
+  "saveBrewHint": "Save today's cup with its brew graph.",
+  "optionalBeans": "Coffee · Optional",
+  "beansExample": "E.g. Ethiopia Yirgacheffe",
+  "optionalNotes": "Brew notes · Optional",
+  "notesExample": "Grind size, water temperature, flavors",
+  "tastingNotes": "Tasting notes",
+  "ratingHint": "Optional · Tap a selected star again to clear it.",
+  "acidity": "Acidity",
+  "sweetness": "Sweetness",
+  "body": "Body",
+  "later": "Later",
+  "save": "Save",
+  "ratingOption": "{label}, {rating} stars",
+  "@ratingOption": {
+    "placeholders": {
+      "label": {
+        "type": "Object"
+      },
+      "rating": {
+        "type": "Object"
+      }
+    }
+  },
+  "cupRecord": "Cup notes",
+  "ratingOutOfFive": "{label}, {rating} out of 5",
+  "@ratingOutOfFive": {
+    "placeholders": {
+      "label": {
+        "type": "Object"
+      },
+      "rating": {
+        "type": "Object"
+      }
+    }
+  },
+  "chooseScale": "Choose a scale",
+  "chooseScaleModel": "Choose a scale model",
+  "chooseScaleHint": "Select your model.\nYou can change it later in Settings.",
+  "changeScaleHint": "Changing models disconnects the previous scale.\nYour dose and saved recipes are kept.",
+  "scaleModelCapacity": "{model} · Up to {capacity} g",
+  "@scaleModelCapacity": {
+    "placeholders": {
+      "model": {
+        "type": "Object"
+      },
+      "capacity": {
+        "type": "Object"
+      }
+    }
+  },
+  "scaleBluetoothHint": "After selecting a scale, connect via Bluetooth.",
+  "startWithScale": "Start with this scale",
+  "useScale": "Use this scale",
+  "checking": "Checking",
+  "unavailable": "Unavailable",
+  "connectedWithBattery": "Connected · Battery {battery}%",
+  "@connectedWithBattery": {
+    "placeholders": {
+      "battery": {
+        "type": "Object"
+      }
+    }
+  },
+  "disconnected": "Disconnected",
+  "disconnect": "Disconnect",
+  "enterDose": "Enter dose",
+  "applyDose": "Apply dose",
+  "checkingZeroShort": "Checking zero",
+  "connectScale": "Connect the scale",
+  "overloadedScale": "The scale is overloaded",
+  "waitingReading": "Waiting for a reading",
+  "checkingEquipment": "Checking equipment weight",
+  "setupEquipmentAgain": "Set up the equipment again",
+  "weighCoffee": "Weigh coffee",
+  "equipmentSetup": "Set up equipment",
+  "doseRequired": "Coffee dose required",
+  "doseConfirmed": "Dose confirmed",
+  "checkCoffeeWeight": "Check the coffee weight",
+  "addCoffee": "Add the coffee",
+  "resetEquipment": "Reset equipment setup",
+  "setUpAgain": "Set up again",
+  "placeServerDripper": "Place the server and dripper",
+  "removeCoffee": "Remove the coffee and leave only the equipment.",
+  "readyToWeigh": "Ready. Start weighing the coffee.",
+  "addCoffeeNext": "Add the coffee in the next step.",
+  "didAddCoffee": "Did you add coffee?",
+  "useDetectedDose": "Use detected {dose} g",
+  "@useDetectedDose": {
+    "placeholders": {
+      "dose": {
+        "type": "Object"
+      }
+    }
+  },
+  "startWeighing": "Start weighing coffee",
+  "demoWeight": "Demo · Live weight",
+  "coffeeBeans": "Coffee beans",
+  "equipmentIllustration": "Server and dripper on a scale",
+  "language": "Language",
+  "continueAction": "Continue",
+  "applyLanguage": "Done",
+  "languageSaveError": "Could not save your language. Try again.",
+  "scaleTab": "Scale",
+  "pourOverTab": "Pour over",
+  "espressoTab": "Espresso"
+}

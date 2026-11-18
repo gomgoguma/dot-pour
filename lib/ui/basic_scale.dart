@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import '../brew_controller.dart';
 import 'style.dart';
 
@@ -29,8 +30,8 @@ class BasicScale extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      '현재 무게',
+                    Text(
+                      context.l10n.liveWeight,
                       style: TextStyle(
                         color: muted,
                         fontSize: 13,
@@ -46,7 +47,7 @@ class BasicScale extends StatelessWidget {
                           TextSpan(
                             text:
                                 overloaded
-                                    ? '용량 초과'
+                                    ? context.l10n.overCapacity
                                     : grams?.toStringAsFixed(1) ?? '0.0',
                             children:
                                 overloaded
@@ -75,7 +76,7 @@ class BasicScale extends StatelessWidget {
                     ),
                     Text.rich(
                       TextSpan(
-                        text: '유량 ',
+                        text: context.l10n.flowPrefix,
                         children: [
                           TextSpan(
                             text: c.scaleFlow.toStringAsFixed(1),
@@ -100,8 +101,8 @@ class BasicScale extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
                           c.scale?.connected == true
-                              ? '저울값을 기다리고 있어요.'
-                              : '저울을 연결해 주세요.',
+                              ? context.l10n.waitingScaleReading
+                              : context.l10n.connectScalePeriod,
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: muted, fontSize: 12),
                         ),
@@ -114,7 +115,11 @@ class BasicScale extends StatelessWidget {
                         minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
                       ),
                       icon: const Icon(Icons.restart_alt_rounded, size: 20),
-                      label: Text(c.taring ? '영점 확인 중…' : '영점 조절 (TARE)'),
+                      label: Text(
+                        c.taring
+                            ? context.l10n.checkingZero
+                            : context.l10n.tareButton,
+                      ),
                     ),
                   ],
                 ),
@@ -127,9 +132,9 @@ class BasicScale extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            '타이머',
+                            context.l10n.timer,
                             style: TextStyle(
                               color: muted,
                               fontSize: 13,
@@ -137,9 +142,14 @@ class BasicScale extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Text(
-                          '물줄기 자동 감지',
-                          style: TextStyle(color: muted, fontSize: 11),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          flex: 2,
+                          child: Text(
+                            context.l10n.autoDetectPour,
+                            textAlign: TextAlign.end,
+                            style: const TextStyle(color: muted, fontSize: 11),
+                          ),
                         ),
                         const SizedBox(width: 4),
                         SizedBox(
@@ -186,11 +196,11 @@ class BasicScale extends StatelessWidget {
                     Text(
                       c.scaleAutoStart
                           ? (timer.running
-                              ? '타이머 측정 중'
+                              ? context.l10n.timerRunning
                               : elapsed > Duration.zero
-                              ? '계속 버튼으로 이어서 측정하세요'
-                              : '0g에서 물을 부으면 시작해요')
-                          : '시작과 멈춤을 직접 조절하세요',
+                              ? context.l10n.resumeTimerHint
+                              : context.l10n.pourFromZero)
+                          : context.l10n.manualTimerHint,
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: muted, fontSize: 11),
                     ),
@@ -209,7 +219,7 @@ class BasicScale extends StatelessWidget {
                               Icons.restart_alt_rounded,
                               size: 18,
                             ),
-                            label: const Text('초기화'),
+                            label: Text(context.l10n.reset),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -225,10 +235,10 @@ class BasicScale extends StatelessWidget {
                             ),
                             label: Text(
                               timer.running
-                                  ? '일시정지'
+                                  ? context.l10n.pause
                                   : elapsed > Duration.zero
-                                  ? '계속'
-                                  : '시작',
+                                  ? context.l10n.resume
+                                  : context.l10n.start,
                             ),
                           ),
                         ),

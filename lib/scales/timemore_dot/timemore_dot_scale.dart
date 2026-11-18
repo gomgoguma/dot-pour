@@ -19,7 +19,7 @@ class TimemoreDotScale extends CoffeeScale {
   int _scanGeneration = 0;
   bool _discoveryRequested = false;
   @override
-  String discoveryStatus = '검색 대기';
+  late String discoveryStatus = strings.scanIdle;
   @override
   bool get canOpenSettings => Platform.isAndroid || Platform.isIOS;
   @override
@@ -48,7 +48,7 @@ class TimemoreDotScale extends CoffeeScale {
     _devices.values.map(
       (device) => ScaleDevice(
         id: device.peripheral.uuid.toString(),
-        name: device.advertisement.name ?? '이름 없는 BLE 기기',
+        name: device.advertisement.name ?? strings.unnamedDevice,
         rssi: device.rssi,
         recommended: _likelyDot(device),
       ),
@@ -103,10 +103,10 @@ class TimemoreDotScale extends CoffeeScale {
       subscriptions.add(
         manager.stateChanged.listen((event) {
           if (event.state != BluetoothLowEnergyState.poweredOn && connected) {
-            _lostConnection('블루투스 연결이 끊겼습니다.');
+            _lostConnection(strings.bluetoothDisconnected);
           }
           if (event.state != BluetoothLowEnergyState.poweredOn && scanning) {
-            error = '블루투스가 꺼졌거나 권한이 해제되어 검색을 중단했습니다.';
+            error = strings.scanPermissionLost;
             unawaited(stopScan());
           }
           _changed();
@@ -116,7 +116,7 @@ class TimemoreDotScale extends CoffeeScale {
         manager.connectionStateChanged.listen((event) {
           if (event.peripheral.uuid == _peripheral?.uuid &&
               event.state == ConnectionState.disconnected) {
-            _lostConnection('도트와 연결이 끊겼습니다. 다시 연결해 주세요.');
+            _lostConnection(strings.dotDisconnected);
           }
         }),
       );
@@ -135,7 +135,7 @@ class TimemoreDotScale extends CoffeeScale {
             if ([1, 2].contains(frame.opcode)) {
               if (frame.command == 6 && frame.payload.length == 1) {
                 _gramsConfirmed = frame.payload[0] == 0;
-                if (!_gramsConfirmed) error = '저울 단위가 g이 아닙니다. 다시 연결해 주세요.';
+                if (!_gramsConfirmed) error = strings.scaleUnitMismatch;
               }
               if (frame.command == 5 && frame.payload.length == 2) {
                 battery = frame.payload[1].clamp(0, 100);
@@ -184,7 +184,7 @@ class TimemoreDotScale extends CoffeeScale {
     error = null;
     final generation = ++_scanGeneration;
     bool current() => !_disposed && generation == _scanGeneration;
-    discoveryStatus = '블루투스 초기화 중';
+    discoveryStatus = strings.initializingBluetooth;
     _changed();
     try {
       _initialize();
@@ -199,10 +199,10 @@ class TimemoreDotScale extends CoffeeScale {
       if (!current()) return;
       if (_requestAuthorization &&
           manager.state == BluetoothLowEnergyState.unauthorized) {
-        discoveryStatus = '근처 기기 권한 확인 중';
+        discoveryStatus = strings.checkingNearbyPermission;
         _changed();
         if (!await manager.authorize().timeout(const Duration(seconds: 45))) {
-          throw StateError('앱 설정에서 근처 기기 권한을 허용해 주세요.');
+          throw StateError(strings.grantNearbyPermission);
         }
         if (!current()) return;
         // The plugin refreshes Android state when the permission dialog closes.
@@ -219,14 +219,14 @@ class TimemoreDotScale extends CoffeeScale {
       if (!current()) return;
       if (manager.state != BluetoothLowEnergyState.poweredOn) {
         throw StateError(switch (manager.state) {
-          BluetoothLowEnergyState.unsupported =>
-            '이 기기는 Bluetooth LE를 지원하지 않습니다.',
-          BluetoothLowEnergyState.unauthorized => '앱의 블루투스 권한을 허용해 주세요.',
-          _ => '블루투스를 켜고 다시 검색해 주세요.',
+          BluetoothLowEnergyState.unsupported => strings.bleUnsupported,
+          BluetoothLowEnergyState.unauthorized =>
+            strings.grantBluetoothPermission,
+          _ => strings.enableBluetooth,
         });
       }
       _devices.clear();
-      discoveryStatus = '검색 시작 중';
+      discoveryStatus = strings.startingScan;
       _discoveryRequested = true;
       _changed();
       final starting = manager.startDiscovery();
@@ -241,16 +241,16 @@ class TimemoreDotScale extends CoffeeScale {
       await starting.timeout(const Duration(seconds: 8));
       if (!current()) return;
       scanning = true;
-      discoveryStatus = 'DOT 저울 검색 중';
+      discoveryStatus = strings.scanningDot;
       _scanTimer = Timer(const Duration(seconds: 12), stopScan);
     } catch (e) {
       if (current()) {
         error =
             e is TimeoutException
-                ? '$discoveryStatus 응답이 지연되었습니다. 앱을 다시 열고 권한을 확인해 주세요.'
-                : '검색 실패: $e';
+                ? strings.scanTimeout(discoveryStatus)
+                : strings.scanError(e);
         await stopScan();
-        discoveryStatus = '검색을 시작하지 못했습니다';
+        discoveryStatus = strings.scanStartError;
       }
     } finally {
       if (!current() && _discoveryRequested) await stopScan();
@@ -266,13 +266,13 @@ class TimemoreDotScale extends CoffeeScale {
     final requested = _discoveryRequested;
     _discoveryRequested = false;
     scanning = false;
-    discoveryStatus = '검색 종료';
+    discoveryStatus = strings.scanEnded;
     try {
       if (requested) {
         await _manager?.stopDiscovery().timeout(const Duration(seconds: 4));
       }
     } catch (e) {
-      error = '검색 중지 실패: $e';
+      error = strings.scanStopError(e);
     }
     _changed();
   }
@@ -292,7 +292,7 @@ class TimemoreDotScale extends CoffeeScale {
     if (busy || connected) return;
     final device = _devices[candidate.id];
     if (device == null) {
-      error = '검색 목록에서 기기를 찾지 못했습니다. 다시 검색해 주세요.';
+      error = strings.deviceNotFound;
       _changed();
       return;
     }
@@ -311,7 +311,7 @@ class TimemoreDotScale extends CoffeeScale {
       deviceName = device.advertisement.name ?? 'TIMEMORE Dot';
       final manager = _manager!;
       if (Platform.isWindows) {
-        discoveryStatus = 'Windows 페어링 확인 중';
+        discoveryStatus = strings.checkingWindowsPairing;
         _changed();
         await _platform
             .invokeMethod<void>('pair', device.peripheral.uuid.toString())
@@ -349,12 +349,12 @@ class TimemoreDotScale extends CoffeeScale {
         }
       }
       if (uplink == null || _write == null) {
-        throw StateError('도트의 BLE 서비스를 찾지 못했습니다.');
+        throw StateError(strings.dotServiceMissing);
       }
       if (model != null &&
           model!.isNotEmpty &&
           !model!.toUpperCase().contains('TES017')) {
-        throw StateError('지원하지 않는 저울 모델입니다: $model');
+        throw StateError(strings.scaleModelUnsupported(model ?? '—'));
       }
       if (Platform.isAndroid) {
         try {
@@ -369,7 +369,7 @@ class TimemoreDotScale extends CoffeeScale {
           .setCharacteristicNotifyState(device.peripheral, uplink, state: true)
           .timeout(const Duration(seconds: 5));
       if (!await _sendWrite(6, [0])) {
-        throw StateError('저울의 g 단위 설정을 확인하지 못했습니다.');
+        throw StateError(strings.cannotConfirmUnit);
       }
       _gramsConfirmed = true;
       if (Platform.isAndroid) {
@@ -386,7 +386,7 @@ class TimemoreDotScale extends CoffeeScale {
       await _send(2, 6);
     } catch (e) {
       await disconnect();
-      error = '연결 실패: $e';
+      error = strings.connectError(e);
     } finally {
       busy = false;
       _changed();
@@ -401,7 +401,7 @@ class TimemoreDotScale extends CoffeeScale {
     final peripheral = _peripheral;
     final characteristic = _write;
     if (peripheral == null || characteristic == null) {
-      throw StateError('연결된 저울이 없습니다.');
+      throw StateError(strings.noConnectedScale);
     }
     await _manager!
         .writeCharacteristic(
@@ -431,12 +431,12 @@ class TimemoreDotScale extends CoffeeScale {
     error = null;
     _changed();
     try {
-      if (!await _sendWrite(0x0d, [])) throw StateError('영점 명령이 거부되었습니다.');
+      if (!await _sendWrite(0x0d, [])) throw StateError(strings.tareRejected);
       // Acknowledgement alone is not a fresh weight measurement.
       reading = null;
       lastReading = null;
     } catch (e) {
-      error = '영점 설정 실패: $e';
+      error = strings.tareError(e);
     } finally {
       busy = false;
       _changed();

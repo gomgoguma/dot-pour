@@ -18,7 +18,10 @@ void main() {
       tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
       tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
       addTearDown(tester.view.reset);
-      SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+      SharedPreferences.setMockInitialValues({
+        'app.language': 'ko',
+        'scale.model': 'test',
+      });
       final prefs = await SharedPreferences.getInstance();
       final scale = FakeScale('test', supportsTare: true)..emit(18);
       var now = Duration.zero;
@@ -88,7 +91,10 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+    SharedPreferences.setMockInitialValues({
+      'app.language': 'ko',
+      'scale.model': 'test',
+    });
     final prefs = await SharedPreferences.getInstance();
     final scale = FakeScale('test', supportsTare: true);
     var now = Duration.zero;
@@ -136,7 +142,10 @@ void main() {
       buildNumber: '9',
       buildSignature: 'test',
     );
-    SharedPreferences.setMockInitialValues({'scale.model': 'test'});
+    SharedPreferences.setMockInitialValues({
+      'app.language': 'ko',
+      'scale.model': 'test',
+    });
     final prefs = await SharedPreferences.getInstance();
     final scale = FakeScale('test')..battery = 80;
     final c = BrewController(

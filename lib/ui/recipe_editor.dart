@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import '../recipe.dart';
 import 'brew_settings.dart';
 import 'brew_chart.dart';
@@ -44,15 +45,16 @@ class _RecipeEditorState extends State<RecipeEditor> {
   String? _error;
   bool _busy = false;
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_rows.isNotEmpty) return;
     final initial = widget.initial;
     _name = TextEditingController(
       text:
           initial == null
               ? ''
               : initial.recorded
-              ? '${initial.name} 계획'
+              ? context.l10n.planFromName(initial.name)
               : initial.name,
     );
     _dose = TextEditingController(text: number(initial?.dose ?? widget.dose));
@@ -104,7 +106,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
   void _changeUnit(PourUnit next) {
     if (next == _unit) return;
     if (!_target.isFinite || _target <= 0) {
-      setState(() => _error = '원두량과 비율을 먼저 입력해 주세요.');
+      setState(() => _error = context.l10n.doseAndRatioFirst);
       return;
     }
     for (final row in _rows) {
@@ -126,7 +128,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
 
   Future<void> _save() async {
     final recipe = _draft();
-    final error = recipe.validate();
+    final error = recipe.validate(context.l10n);
     if (error != null) {
       setState(() => _error = error);
       return;
@@ -138,7 +140,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = '저장 실패: $e';
+          _error = context.l10n.saveError(e);
           _busy = false;
         });
       }
@@ -157,10 +159,10 @@ class _RecipeEditorState extends State<RecipeEditor> {
       appBar: AppBar(
         title: Text(
           widget.initial == null
-              ? '레시피 만들기'
+              ? context.l10n.createRecipe
               : widget.initial!.recorded
-              ? '기록으로 계획 만들기'
-              : '레시피 편집',
+              ? context.l10n.planFromBrew
+              : context.l10n.editRecipe,
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -183,7 +185,9 @@ class _RecipeEditorState extends State<RecipeEditor> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _busy ? null : _save,
-                  child: Text(_busy ? '저장 중…' : '레시피 저장'),
+                  child: Text(
+                    _busy ? context.l10n.saving : context.l10n.saveRecipe,
+                  ),
                 ),
               ),
             ],
@@ -202,9 +206,9 @@ class _RecipeEditorState extends State<RecipeEditor> {
                   key: const Key('recipe-name'),
                   controller: _name,
                   maxLength: 60,
-                  decoration: const InputDecoration(
-                    labelText: '레시피 이름',
-                    hintText: '예: 아침의 3번 붓기',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.recipeName,
+                    hintText: context.l10n.recipeNameExample,
                   ),
                   onChanged: (_) => _refresh(),
                 ),
@@ -216,7 +220,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
                 ),
                 const SizedBox(height: 30),
                 SectionLabel(
-                  '붓기 계획 · ${_rows.length}차',
+                  context.l10n.pourPlan(_rows.length),
                   trailing: TextButton(
                     onPressed: () {
                       if (_target.isFinite && _rows.isNotEmpty) {
@@ -229,20 +233,20 @@ class _RecipeEditorState extends State<RecipeEditor> {
                         _refresh();
                       }
                     },
-                    child: const Text('균등 분배'),
+                    child: Text(context.l10n.splitEvenly),
                   ),
                 ),
                 SizedBox(
                   width: double.infinity,
                   child: SegmentedButton<PourUnit>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: PourUnit.grams,
-                        label: Text('질량 · g'),
+                        label: Text(context.l10n.weightUnit),
                       ),
                       ButtonSegment(
                         value: PourUnit.percent,
-                        label: Text('비율 · %'),
+                        label: Text(context.l10n.percentUnit),
                       ),
                     ],
                     selected: {_unit},
@@ -252,8 +256,8 @@ class _RecipeEditorState extends State<RecipeEditor> {
                 const SizedBox(height: 12),
                 Text(
                   _unit == PourUnit.percent
-                      ? '각 차수에 추가로 부을 비율입니다. 전체 합계는 100%예요.'
-                      : '각 차수에 추가로 부을 물의 무게입니다.',
+                      ? context.l10n.pourPercentHint
+                      : context.l10n.pourWeightHint,
                   style: const TextStyle(color: muted, fontSize: 12),
                 ),
                 const SizedBox(height: 16),
@@ -288,14 +292,16 @@ class _RecipeEditorState extends State<RecipeEditor> {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              i == 0 ? '첫 물 붓기' : '${i + 1}차 붓기',
+                              i == 0
+                                  ? context.l10n.firstPour
+                                  : context.l10n.pourNumber(i + 1),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const Spacer(),
                             IconButton(
-                              tooltip: '${i + 1}차 삭제',
+                              tooltip: context.l10n.removePour(i + 1),
                               onPressed:
                                   _rows.length == 1
                                       ? null
@@ -320,17 +326,24 @@ class _RecipeEditorState extends State<RecipeEditor> {
                             Expanded(
                               child: _field(
                                 row.start,
-                                '시작 · 초',
+                                context.l10n.pourStartSeconds,
                                 enabled: i != 0,
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Expanded(child: _field(row.duration, '붓기 · 초')),
+                            Expanded(
+                              child: _field(
+                                row.duration,
+                                context.l10n.pourDurationSeconds,
+                              ),
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: _field(
                                 row.amount,
-                                _unit == PourUnit.percent ? '추가 · %' : '추가 · g',
+                                _unit == PourUnit.percent
+                                    ? context.l10n.pourAddPercent
+                                    : context.l10n.pourAddGrams,
                               ),
                             ),
                           ],
@@ -355,7 +368,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
                             _refresh();
                           },
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('붓기 차수 추가'),
+                  label: Text(context.l10n.addPour),
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -366,7 +379,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    '합계 ${amountGrams.isFinite ? number(amountGrams) : '—'} g / 목표 ${_target.isFinite ? number(_target) : '—'} g'
+                    '${context.l10n.pourPlanTotal(amountGrams.isFinite ? number(amountGrams) : '—', _target.isFinite ? number(_target) : '—')}'
                     '${_unit == PourUnit.percent ? '  ·  ${_sum.isFinite ? number(_sum, 2) : '—'}%' : ''}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
@@ -375,16 +388,16 @@ class _RecipeEditorState extends State<RecipeEditor> {
                 TextField(
                   controller: _duration,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: '총 추출시간',
-                    suffixText: '초',
-                    helperText: '마지막 붓기 이후 대기 시간까지 포함합니다.',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.totalBrewTime,
+                    suffixText: context.l10n.secondsUnit,
+                    helperText: context.l10n.totalBrewTimeHint,
                   ),
                   onChanged: (_) => _refresh(),
                 ),
                 if (draft.validate() == null) ...[
                   const SizedBox(height: 24),
-                  const SectionLabel('계획 미리보기'),
+                  SectionLabel(context.l10n.previewPlan),
                   BrewChart(
                     points: const [],
                     reference: draft,

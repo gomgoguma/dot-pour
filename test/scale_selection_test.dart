@@ -1,5 +1,6 @@
 import 'package:dot_pour/brew_controller.dart';
 import 'package:dot_pour/brew_session.dart';
+import 'package:dot_pour/l10n/language.dart';
 import 'package:dot_pour/main.dart';
 import 'package:dot_pour/scales/scale_registry.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,13 @@ void main() {
       SharedPreferences.setMockInitialValues({'dose': 18.0, 'ratio': 16.7});
       final prefs = await SharedPreferences.getInstance();
       await tester.pumpWidget(DotPourApp(preferences: prefs));
+      expect(find.text('Language'), findsOneWidget);
+      expect(prefs.getString(AppLanguage.preferenceKey), isNull);
+      await tester.tap(find.text('한국어').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('apply-language')));
+      await tester.pumpAndSettle();
+      expect(prefs.getString(AppLanguage.preferenceKey), 'ko');
       expect(find.text('저울 모델 선택'), findsOneWidget);
       expect(find.text('Black Mirror Dot'), findsOneWidget);
       expect(ScaleRegistry.standard().models.length, 1);
@@ -45,6 +53,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(DotPourApp(preferences: prefs));
       expect(find.text('저울 모델 선택'), findsNothing);
+      expect(find.byKey(const Key('language-wheel')), findsNothing);
       await tester.tap(find.text('설정'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('change-scale')), findsOneWidget);

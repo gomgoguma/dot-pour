@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import '../brew_controller.dart';
 import 'style.dart';
 
@@ -15,7 +16,7 @@ class WeighingPanel extends StatelessWidget {
       builder:
           (dialogContext) => AlertDialog(
             scrollable: true,
-            title: const Text('원두량 직접 입력'),
+            title: Text(context.l10n.enterDose),
             content: Form(
               key: form,
               child: TextFormField(
@@ -25,8 +26,8 @@ class WeighingPanel extends StatelessWidget {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: const InputDecoration(
-                  labelText: '원두량',
+                decoration: InputDecoration(
+                  labelText: context.l10n.dose,
                   suffixText: 'g',
                 ),
                 validator: (value) => c.validateDose(parseNumber(value ?? '')),
@@ -36,7 +37,7 @@ class WeighingPanel extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('취소'),
+                child: Text(context.l10n.cancel),
               ),
               FilledButton(
                 onPressed: () {
@@ -45,7 +46,7 @@ class WeighingPanel extends StatelessWidget {
                   state.save();
                   Navigator.pop(dialogContext, dose);
                 },
-                child: const Text('원두량 적용'),
+                child: Text(context.l10n.applyDose),
               ),
             ],
           ),
@@ -65,17 +66,17 @@ class WeighingPanel extends StatelessWidget {
     final overloaded = !c.demo && c.scale?.reading?.overloaded == true;
     final status =
         busy
-            ? '영점 확인 중'
+            ? context.l10n.checkingZeroShort
             : !connected && !c.demo
-            ? '저울을 연결해 주세요'
+            ? context.l10n.connectScale
             : overloaded
-            ? '저울 용량을 초과했어요'
+            ? context.l10n.overloadedScale
             : c.currentGrams == null
-            ? '측정값을 기다리고 있어요'
+            ? context.l10n.waitingReading
             : c.addingEquipment
-            ? '기구 무게 확인 중'
+            ? context.l10n.checkingEquipment
             : isWeighing && grams == null
-            ? '기구를 다시 준비해 주세요'
+            ? context.l10n.setupEquipmentAgain
             : null;
     final ready = status == null && c.equipmentReady && suggested == null;
     return SurfaceCard(
@@ -88,7 +89,9 @@ class WeighingPanel extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  isWeighing ? '원두 계량' : '기구 준비',
+                  isWeighing
+                      ? context.l10n.weighCoffee
+                      : context.l10n.equipmentSetup,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -106,8 +109,8 @@ class WeighingPanel extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 icon: const Icon(Icons.edit_outlined, size: 14),
-                label: const Text(
-                  '원두량 직접 입력',
+                label: Text(
+                  context.l10n.enterDose,
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ),
@@ -122,13 +125,13 @@ class WeighingPanel extends StatelessWidget {
                   key: const Key('weighing-reading-group'),
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _illustration(true),
+                    _illustration(context, true),
                     const SizedBox(width: 16),
                     Text.rich(
                       TextSpan(
                         text:
                             overloaded
-                                ? '용량 초과'
+                                ? context.l10n.overCapacity
                                 : grams?.toStringAsFixed(1) ?? '—',
                         children:
                             overloaded || grams == null
@@ -145,7 +148,8 @@ class WeighingPanel extends StatelessWidget {
                                 ],
                       ),
                       key: const Key('live-weight'),
-                      semanticsLabel: grams == null ? '원두량 확인 필요' : null,
+                      semanticsLabel:
+                          grams == null ? context.l10n.doseRequired : null,
                       style: const TextStyle(
                         fontSize: 56,
                         height: 1.1,
@@ -165,10 +169,10 @@ class WeighingPanel extends StatelessWidget {
                   child: Text(
                     status ??
                         (c.confirmedDose != null
-                            ? '원두량 확인 완료'
+                            ? context.l10n.doseConfirmed
                             : (grams ?? 0) > 0
-                            ? '원두 무게 확인'
-                            : '원두를 담아 주세요'),
+                            ? context.l10n.checkCoffeeWeight
+                            : context.l10n.addCoffee),
                     key: const Key('weighing-instruction'),
                     style: const TextStyle(
                       color: muted,
@@ -188,7 +192,10 @@ class WeighingPanel extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   icon: const Icon(Icons.arrow_back_rounded, size: 14),
-                  label: const Text('기구 다시 준비', style: TextStyle(fontSize: 12)),
+                  label: Text(
+                    context.l10n.resetEquipment,
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -197,7 +204,7 @@ class WeighingPanel extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  _illustration(false, size: compact ? 48 : 60),
+                  _illustration(context, false, size: compact ? 48 : 60),
                   SizedBox(width: compact ? 12 : 16),
                   Expanded(
                     child: Column(
@@ -206,8 +213,8 @@ class WeighingPanel extends StatelessWidget {
                         Text(
                           status ??
                               (c.preparingAgain
-                                  ? '다시 준비해 주세요'
-                                  : '서버와 드리퍼를 올려 주세요'),
+                                  ? context.l10n.setUpAgain
+                                  : context.l10n.placeServerDripper),
                           key: const Key('weighing-instruction'),
                           style: const TextStyle(
                             fontSize: 16,
@@ -218,10 +225,10 @@ class WeighingPanel extends StatelessWidget {
                         const SizedBox(height: 5),
                         Text(
                           c.preparingAgain
-                              ? '원두를 빼고 기구만 올려 주세요.'
+                              ? context.l10n.removeCoffee
                               : ready
-                              ? '준비됐어요. 원두 계량을 시작해 주세요.'
-                              : '원두는 다음 단계에서 담아 주세요.',
+                              ? context.l10n.readyToWeigh
+                              : context.l10n.addCoffeeNext,
                           key: ready ? const Key('equipment-ready-hint') : null,
                           style: TextStyle(
                             color: ready ? copperText : muted,
@@ -247,8 +254,11 @@ class WeighingPanel extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Expanded(
-                    child: Text('원두를 담으셨나요?', style: TextStyle(fontSize: 12)),
+                  Expanded(
+                    child: Text(
+                      context.l10n.didAddCoffee,
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Flexible(
@@ -257,7 +267,7 @@ class WeighingPanel extends StatelessWidget {
                       onPressed: busy ? null : () => c.setDose(suggested),
                       style: TextButton.styleFrom(foregroundColor: copperText),
                       child: Text(
-                        '감지된 ${number(suggested)}g 사용',
+                        context.l10n.useDetectedDose(number(suggested)),
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontSize: 12),
                       ),
@@ -289,10 +299,13 @@ class WeighingPanel extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('원두 계량 시작', style: TextStyle(fontSize: 13)),
+                  Text(
+                    context.l10n.startWeighing,
+                    style: TextStyle(fontSize: 13),
+                  ),
                   SizedBox(width: 8),
                   Icon(Icons.arrow_forward_rounded, size: 16),
                 ],
@@ -301,8 +314,8 @@ class WeighingPanel extends StatelessWidget {
           ],
           if (c.demo) ...[
             const SizedBox(height: 12),
-            const Text(
-              '데모 · 저울값',
+            Text(
+              context.l10n.demoWeight,
               style: TextStyle(color: muted, fontSize: 12),
             ),
             Slider(
@@ -318,7 +331,11 @@ class WeighingPanel extends StatelessWidget {
     );
   }
 
-  Widget _illustration(bool isWeighing, {double size = 60}) => Image.asset(
+  Widget _illustration(
+    BuildContext context,
+    bool isWeighing, {
+    double size = 60,
+  }) => Image.asset(
     isWeighing
         ? 'assets/illustrations/coffee-beans.png'
         : 'assets/illustrations/pour-over-setup.png',
@@ -328,6 +345,9 @@ class WeighingPanel extends StatelessWidget {
     cacheHeight: 264,
     fit: BoxFit.contain,
     filterQuality: FilterQuality.high,
-    semanticLabel: isWeighing ? '커피 원두' : '저울 위에 놓인 서버와 드리퍼',
+    semanticLabel:
+        isWeighing
+            ? context.l10n.coffeeBeans
+            : context.l10n.equipmentIllustration,
   );
 }

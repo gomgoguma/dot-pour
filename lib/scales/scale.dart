@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../l10n/language.dart';
 import 'scale_models.dart';
 export 'scale_models.dart';
 
@@ -10,6 +11,10 @@ export 'scale_models.dart';
 /// brew session. [disconnect] must be safe to call repeatedly; [dispose] must
 /// cancel subscriptions and release any remaining native resources.
 abstract class CoffeeScale extends ChangeNotifier {
+  AppLocalizations Function()? localizations;
+  AppLocalizations get strings =>
+      localizations?.call() ?? AppLanguage.korean.strings;
+
   ScaleInfo get info;
   List<ScaleDevice> get devices;
   bool get scanning;
@@ -21,7 +26,8 @@ abstract class CoffeeScale extends ChangeNotifier {
   int? get battery;
   ScaleReading? get reading;
   DateTime? get lastReading;
-  String get discoveryStatus => scanning ? '주변 기기 검색 중' : '검색 대기';
+  String get discoveryStatus =>
+      scanning ? strings.scanningNearby : strings.scanIdle;
   bool get canOpenSettings => false;
   Future<void> openSettings() async {}
   Duration get readingTimeout => const Duration(seconds: 2);

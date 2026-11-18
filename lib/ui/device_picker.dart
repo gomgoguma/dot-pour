@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import '../scales/scale.dart';
 import 'style.dart';
 
@@ -25,9 +27,11 @@ Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SectionLabel('${scale.info.shortName} 연결'),
-                        const Text(
-                          '저울을 켜고, 연결 중인 다른 앱을 종료해 주세요.',
+                        SectionLabel(
+                          context.l10n.connectModel(scale.info.shortName),
+                        ),
+                        Text(
+                          context.l10n.scaleScanHint,
                           style: TextStyle(color: muted),
                         ),
                         if (scale.scanning || scale.busy) ...[
@@ -51,8 +55,10 @@ Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
                                   ? Center(
                                     child: Text(
                                       scale.scanning || scale.busy
-                                          ? '저울을 찾는 중…'
-                                          : '${scale.info.shortName} 저울을 찾지 못했습니다.\n저울을 켜고 다시 검색해 주세요.',
+                                          ? context.l10n.searchingScale
+                                          : context.l10n.noModelFound(
+                                            scale.info.shortName,
+                                          ),
                                       textAlign: TextAlign.center,
                                     ),
                                   )
@@ -80,12 +86,12 @@ Future<void> showDevicePicker(BuildContext context, CoffeeScale scale) async {
                           onPressed:
                               scale.busy || scale.scanning ? null : scale.scan,
                           icon: const Icon(Icons.refresh),
-                          label: const Text('다시 검색'),
+                          label: Text(context.l10n.scanAgain),
                         ),
                         if (scale.canOpenSettings)
                           TextButton(
                             onPressed: scale.openSettings,
-                            child: const Text('앱 권한 설정 열기'),
+                            child: Text(context.l10n.openPermissions),
                           ),
                       ],
                     ),

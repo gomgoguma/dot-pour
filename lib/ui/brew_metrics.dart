@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/language.dart';
 import '../brew_session.dart';
 import 'brew_timer.dart';
 import 'style.dart';
@@ -28,9 +29,9 @@ class BrewMetrics extends StatelessWidget {
       const SizedBox(height: 10),
       Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              '부은 물',
+              context.l10n.waterPoured,
               style: TextStyle(
                 color: muted,
                 fontSize: 12,
@@ -39,20 +40,23 @@ class BrewMetrics extends StatelessWidget {
             ),
           ),
           if (holdingMeasurement)
-            const Tooltip(
-              message: '저울값 안정 대기',
+            Tooltip(
+              message: context.l10n.waitingStableWeight,
               child: Icon(
                 Icons.circle,
                 key: Key('weight-hold-indicator'),
                 size: 7,
                 color: Color(0xffbc8638),
-                semanticLabel: '저울값 안정 대기',
+                semanticLabel: context.l10n.waitingStableWeight,
               ),
             ),
         ],
       ),
       Semantics(
-        label: '부은 물 ${water.toStringAsFixed(1)}g, 목표 물 ${number(target)}g',
+        label: context.l10n.waterAndTarget(
+          water.toStringAsFixed(1),
+          number(target),
+        ),
         excludeSemantics: true,
         child: Row(
           children: [
@@ -93,7 +97,7 @@ class BrewMetrics extends StatelessWidget {
                 fit: BoxFit.scaleDown,
                 child: Text.rich(
                   TextSpan(
-                    text: '목표\n',
+                    text: context.l10n.targetLine,
                     children: [
                       TextSpan(
                         text: '${number(target)} g',
@@ -121,7 +125,7 @@ class BrewMetrics extends StatelessWidget {
       const SizedBox(height: 4),
       Text.rich(
         TextSpan(
-          text: '유량 ',
+          text: context.l10n.flowPrefix,
           children: [
             TextSpan(
               text: flow.toStringAsFixed(1),
@@ -155,7 +159,10 @@ class BrewMetrics extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text('달성률', style: TextStyle(fontSize: 11, color: muted)),
+                Text(
+                  context.l10n.progress,
+                  style: TextStyle(fontSize: 11, color: muted),
+                ),
                 const SizedBox(height: 4),
                 FittedBox(
                   fit: BoxFit.scaleDown,
@@ -195,8 +202,8 @@ class BrewMetrics extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         backgroundColor: mint,
         color: copper,
-        semanticsLabel: '목표 대비 진행률',
-        semanticsValue: '${percent.toStringAsFixed(1)}%',
+        semanticsLabel: context.l10n.progressTowardTarget,
+        semanticsValue: '${percent.clamp(0, 100).toStringAsFixed(1)}%',
       ),
     ],
   );
