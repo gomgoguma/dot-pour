@@ -66,7 +66,7 @@ The ratio control centers **− / 1 : ratio / +**, uses outlined circular button
 
 ## Versioning
 
-The current version is **0.7.0+37**. Releases with new capabilities, such as Scale mode with a manual timer or changes to brew preparation, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
+The current version is **0.8.0+38**. Releases with new capabilities, such as in-app language selection, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
 
 ## Development setup
 
