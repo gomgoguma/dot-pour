@@ -41,6 +41,7 @@ abstract class CoffeeScale extends ChangeNotifier {
   Future<void> scan();
   Future<void> stopScan();
   Future<void> connect(ScaleDevice device);
+  Future<void> refreshBattery() async {}
   Future<void> tare();
   Future<void> disconnect();
 }

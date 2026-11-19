@@ -7,30 +7,44 @@ class BrewTimer extends StatelessWidget {
   final double seconds;
   final BrewPhase phase;
   final bool reached;
+  final String? statusOverride;
   const BrewTimer({
     super.key,
     required this.seconds,
     required this.phase,
     required this.reached,
+    this.statusOverride,
   });
 
   @override
   Widget build(BuildContext context) {
-    final status = switch (phase) {
-      BrewPhase.setup => context.l10n.readyToStart,
-      BrewPhase.ready => context.l10n.waitingFirstPour,
-      BrewPhase.pouring =>
-        reached ? context.l10n.targetReached : context.l10n.brewInProgress,
-      BrewPhase.finished => context.l10n.brewFinished,
-      BrewPhase.interrupted => context.l10n.brewInterrupted,
-    };
+    final status =
+        statusOverride ??
+        switch (phase) {
+          BrewPhase.setup => context.l10n.readyToStart,
+          BrewPhase.ready => context.l10n.waitingFirstPour,
+          BrewPhase.pouring =>
+            reached ? context.l10n.targetReached : context.l10n.brewInProgress,
+          BrewPhase.finished => context.l10n.brewFinished,
+          BrewPhase.interrupted => context.l10n.brewInterrupted,
+        };
     return Semantics(
       label: context.l10n.brewTimeStatus(clockText(seconds), status),
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(status, style: const TextStyle(fontSize: 11, color: muted)),
+          Text(
+            status,
+            style:
+                statusOverride == null
+                    ? const TextStyle(fontSize: 11, color: muted)
+                    : const TextStyle(
+                      fontSize: 12,
+                      color: copperText,
+                      fontWeight: FontWeight.w600,
+                    ),
+          ),
           const SizedBox(height: 3),
           FittedBox(
             fit: BoxFit.scaleDown,

@@ -288,6 +288,8 @@
   "espressoCupBeforeStart": "カップを載せると開始ボタンが有効になります。",
   "espressoScaleIsEmpty": "スケールを空にしました",
   "espressoTrayBeforeStart": "スケールとカップをマシンのトレイに置いてから開始してください。",
+  "espressoPausedResult": "抽出完了 · 抽出が続くと再開します",
+  "espressoLiftCupToFinish": "カップを持ち上げると、自動で抽出を終了します。",
   "espressoArm": "最初の一滴から",
   "espressoManualStart": "今すぐ開始",
   "espressoVessels": "ドージング方法の管理",

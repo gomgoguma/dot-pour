@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../l10n/language.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -27,6 +29,11 @@ class _ScaleStatusSheetState extends State<ScaleStatusSheet> {
   void initState() {
     super.initState();
     _loadVersion();
+    final c = widget.controller;
+    final scale = c.scale;
+    if (scale != null && !c.brewingActive && !c.starting && !c.taring) {
+      unawaited(scale.refreshBattery());
+    }
   }
 
   Future<void> _loadVersion() async {

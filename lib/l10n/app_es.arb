@@ -288,6 +288,8 @@
   "espressoCupBeforeStart": "Al colocar la taza se habilitan los botones de inicio.",
   "espressoScaleIsEmpty": "La báscula está vacía",
   "espressoTrayBeforeStart": "Coloca la báscula y la taza en la bandeja de goteo antes de empezar.",
+  "espressoPausedResult": "Extracción completa · Se reanuda si vuelve el flujo",
+  "espressoLiftCupToFinish": "Retira la taza para finalizar la extracción automáticamente.",
   "espressoArm": "Desde las primeras gotas",
   "espressoManualStart": "Empezar ahora",
   "espressoVessels": "Métodos de dosificación",

@@ -48,6 +48,16 @@ class DotProtocol {
       overloaded: data.getUint8(8) != 0,
     );
   }
+
+  static int? batteryFromFrame(DotFrame frame) {
+    if ((frame.opcode != 1 && frame.opcode != 2) ||
+        frame.command != 5 ||
+        frame.payload.length != 2) {
+      return null;
+    }
+    final percentage = frame.payload[1];
+    return percentage <= 100 ? percentage : null;
+  }
 }
 
 class DotFrame {

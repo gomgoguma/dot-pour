@@ -593,6 +593,9 @@ class BrewController extends ChangeNotifier {
     if (!canStartEspresso || _scale!.busy) return;
     final scale = _scale!;
     var baseline = currentGrams!;
+    final emptyBeforeTare = _espressoCupBaseline!;
+    final cupWeight = baseline - emptyBeforeTare;
+    var emptyScaleGrams = emptyBeforeTare;
     var at = DateTime.now();
     if (demo || scale.info.capabilities.tare) {
       final zero = await tare();
@@ -603,12 +606,18 @@ class BrewController extends ChangeNotifier {
         return;
       }
       baseline = zero;
+      emptyScaleGrams = zero - cupWeight;
       at = demo ? DateTime.now() : scale.lastReading!;
     }
     espressoNotice = null;
     espressoDemoPour = false;
     _clearEspressoDoseZero();
-    espresso.start(baseline: baseline, at: at, automatic: automatic);
+    espresso.start(
+      baseline: baseline,
+      emptyScaleGrams: emptyScaleGrams,
+      at: at,
+      automatic: automatic,
+    );
     _keepAwake(true);
     _changed();
   }

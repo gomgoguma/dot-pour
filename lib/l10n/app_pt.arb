@@ -288,6 +288,8 @@
   "espressoCupBeforeStart": "Os botões de início ficam disponíveis ao colocar a xícara.",
   "espressoScaleIsEmpty": "A balança está vazia",
   "espressoTrayBeforeStart": "Coloque a balança e a xícara na bandeja da máquina antes de iniciar.",
+  "espressoPausedResult": "Extração concluída · Retoma se voltar a fluir",
+  "espressoLiftCupToFinish": "Retire a xícara para encerrar a extração automaticamente.",
   "espressoArm": "Nas primeiras gotas",
   "espressoManualStart": "Começar agora",
   "espressoVessels": "Métodos de dosagem",

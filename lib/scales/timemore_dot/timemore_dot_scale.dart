@@ -137,9 +137,8 @@ class TimemoreDotScale extends CoffeeScale {
                 _gramsConfirmed = frame.payload[0] == 0;
                 if (!_gramsConfirmed) error = strings.scaleUnitMismatch;
               }
-              if (frame.command == 5 && frame.payload.length == 2) {
-                battery = frame.payload[1].clamp(0, 100);
-              }
+              final percentage = DotProtocol.batteryFromFrame(frame);
+              if (percentage != null) battery = percentage;
               final next = DotProtocol.readingFromFrame(frame);
               if (next != null && _gramsConfirmed) {
                 reading = next;
@@ -421,6 +420,16 @@ class TimemoreDotScale extends CoffeeScale {
       return await completer.future.timeout(const Duration(seconds: 4));
     } finally {
       _acks.remove(command);
+    }
+  }
+
+  @override
+  Future<void> refreshBattery() async {
+    if (!connected || busy) return;
+    try {
+      await _send(2, 5);
+    } catch (_) {
+      // Keep the last valid battery reading if this optional query fails.
     }
   }
 

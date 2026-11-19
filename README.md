@@ -59,7 +59,8 @@ The ratio control centers **− / 1 : ratio / +**, uses outlined circular button
 1. Enter your dose manually, or weigh it in the espresso tab. Under **Manage dosing methods**, name your setup and save the empty weight, including the basket and any dosing ring you use.
 2. Select a saved **Dosing method**, tare the bare scale, and place the loaded vessel on it. Dot Pour subtracts the saved empty weight and displays the live dose. Tap **Use this dose** to confirm it. You can also tare an empty container and weigh the coffee directly.
 3. Remove the dosing vessel and leave the scale empty briefly. Confirm that the scale is empty if prompted. Place an empty shot cup on the scale. When the weight settles, choose **Start now** or **Start on first drops**. Both tare the cup first. **Start on first drops** waits for two consecutive readings at least 0.2 g above zero.
-4. The chart shows yield in grams and flow in grams per second on the same time axis. The shot finishes after a pour lasting at least five seconds is followed by four seconds without a meaningful increase. You can finish manually at any time.
+4. The chart shows yield in grams and flow in grams per second on the same time axis. After at least five seconds of pouring, the displayed time holds at the last weight gain when the flow stops. After one second without a gain, the screen shows the held result. A confirmed gain of at least 0.1 g resumes the same shot and catches the timer up to the actual elapsed time.
+5. Lift the shot cup to finish, or tap **Finish brew**. A stable reading at least two-thirds of the pre-tare cup weight below zero confirms removal and ends the shot at the last accepted gain.
 
 ## Recipes
 
@@ -73,7 +74,7 @@ The ratio control centers **− / 1 : ratio / +**, uses outlined circular button
 
 ## Versioning
 
-The current version is **0.9.0+41**. Releases with new capabilities, such as espresso mode, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
+The current version is **0.9.1+43**. Releases with new capabilities, such as espresso mode, increment the minor version. Fixes and copy edits within existing features increment the patch version. Each distributed APK increments the Android build number, which Android uses to determine update order.
 
 ## Development setup
 

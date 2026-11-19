@@ -264,14 +264,17 @@ class _ChartPainter extends CustomPainter {
       );
       if (showFlow) {
         final flowPath = Path();
+        double? previousY;
         for (final (index, point) in points.indexed) {
           final x = location(point).dx;
           final y = bounds.bottom - (point.flow / maxFlow) * bounds.height;
           if (index == 0) {
             flowPath.moveTo(x, y);
           } else {
+            if (point.breakBefore) flowPath.lineTo(x, previousY!);
             flowPath.lineTo(x, y);
           }
+          previousY = y;
         }
         canvas.drawPath(
           flowPath,

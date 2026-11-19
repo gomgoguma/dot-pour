@@ -140,6 +140,7 @@ void main() {
 
     final start = find.byKey(const Key('espresso-auto-start'));
     final immediate = find.byKey(const Key('espresso-manual-start'));
+    final liftCupHint = find.text('샷잔을 들면 자동으로 추출이 끝나요.');
     expect(tester.widget<FilledButton>(start).onPressed, isNull);
     expect(tester.widget<OutlinedButton>(immediate).onPressed, isNull);
     expect(find.text('저울을 비워 주세요'), findsOneWidget);
@@ -163,6 +164,7 @@ void main() {
     expect(c.espresso.phase, EspressoPhase.armed);
     expect(scale.tares, 3);
     expect(find.byKey(const Key('home-mode-espresso')), findsNothing);
+    expect(liftCupHint, findsNothing);
     scale.emit(.1);
     scale.emit(.2);
     expect(c.espresso.phase, EspressoPhase.armed);
@@ -170,10 +172,22 @@ void main() {
     await tester.pump();
     expect(c.espresso.phase, EspressoPhase.brewing);
     expect(tester.widget<BrewChart>(find.byType(BrewChart)).showFlow, isTrue);
-    await tester.ensureVisible(find.byKey(const Key('espresso-finish')));
-    await tester.tap(find.byKey(const Key('espresso-finish')));
+    expect(liftCupHint, findsOneWidget);
+    final yieldTime = c.espresso.secondsAt(scale.lastReading!);
+    scale.emit(1.3);
+    scale.emit(-55);
+    await tester.pump();
+    expect(c.espresso.phase, EspressoPhase.brewing);
+    scale.lastReading = scale.lastReading!.add(
+      const Duration(milliseconds: 300),
+    );
+    scale.emit(-55);
     await tester.pumpAndSettle();
     expect(c.espresso.phase, EspressoPhase.finished);
+    expect(c.espresso.yieldGrams, .3);
+    expect(c.espresso.secondsAt(scale.lastReading!), yieldTime);
+    expect(find.text('추출 완료'), findsOneWidget);
+    expect(liftCupHint, findsNothing);
     c.resetEspresso();
     await tester.pump();
     expect(tester.widget<FilledButton>(start).onPressed, isNull);
@@ -205,6 +219,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.espresso.phase, EspressoPhase.brewing);
     expect(scale.tares, 4);
+
+    final clock = DateTime.now();
+    final shotStart = clock.subtract(const Duration(seconds: 12));
+    c.espresso.reset();
+    c.espresso.start(baseline: 0, at: shotStart, automatic: false);
+    for (var ms = 250; ms <= 5750; ms += 250) {
+      c.espresso.observe(ms / 500, shotStart.add(Duration(milliseconds: ms)));
+    }
+    c.espresso.observe(11.5, clock);
+    await tester.pump(const Duration(milliseconds: 100));
+    final completion = find.text('추출 완료 · 더 추출하면 이어져요');
+    final elapsed = find.text('00:05');
+    final finish = find.byKey(const Key('espresso-finish'));
+    expect(completion, findsOneWidget);
+    expect(elapsed, findsOneWidget);
+    expect(liftCupHint, findsOneWidget);
+    expect(find.text('추출 마치기'), findsOneWidget);
+    expect(
+      tester.getBottomLeft(completion).dy,
+      lessThanOrEqualTo(tester.getTopLeft(elapsed).dy),
+    );
+    expect(
+      tester.getBottomLeft(liftCupHint).dy,
+      lessThanOrEqualTo(tester.getTopLeft(finish).dy),
+    );
+    expect(c.espresso.active, isTrue);
+
+    c.espresso.observe(11.6, clock.add(const Duration(milliseconds: 100)));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('추출 중'), findsOneWidget);
+    expect(completion, findsNothing);
+    expect(find.text('00:12'), findsOneWidget);
+    expect(c.espresso.phase, EspressoPhase.brewing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

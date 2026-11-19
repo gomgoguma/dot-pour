@@ -669,6 +669,8 @@
   "espressoCupBeforeStart": "Both start options unlock once the cup is in place.",
   "espressoScaleIsEmpty": "Scale is empty",
   "espressoTrayBeforeStart": "Place the scale and cup on the drip tray before starting.",
+  "espressoPausedResult": "Shot complete · Resumes if more flows",
+  "espressoLiftCupToFinish": "Lift the cup to finish the shot automatically.",
   "espressoArm": "Start on first drops",
   "espressoManualStart": "Start now",
   "espressoVessels": "Dosing methods",

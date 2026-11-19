@@ -94,4 +94,22 @@ void main() {
     );
     expect(DotFrameDecoder().add(bytes).single.command, 6);
   });
+  test('battery uses the percentage byte and ignores values above 100', () {
+    final frames = DotFrameDecoder().add([
+      ...DotProtocol.command(2, 5, [3, 100]),
+      ...DotProtocol.command(1, 5, [2, 71]),
+      ...DotProtocol.command(1, 5, [2, 255]),
+      ...DotProtocol.command(2, 5, [2]),
+      ...DotProtocol.command(3, 5, [2, 71]),
+      ...DotProtocol.command(1, 6, [2, 71]),
+    ]);
+    expect(frames.map(DotProtocol.batteryFromFrame), [
+      100,
+      71,
+      null,
+      null,
+      null,
+      null,
+    ]);
+  });
 }

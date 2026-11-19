@@ -36,6 +36,7 @@ class EspressoPanel extends StatelessWidget {
                 shot: shot,
                 seconds: seconds,
                 flow: shot.flowAt(now),
+                showCompletion: shot.showsCompletionAt(now),
               ),
               const SizedBox(height: 16),
               SurfaceCard(
@@ -267,17 +268,29 @@ class EspressoActions extends StatelessWidget {
             : shot.active
             ? s.finishBrew
             : s.newBrew;
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        key: const Key('espresso-finish'),
-        onPressed: shot.active ? c.finishEspresso : c.resetEspresso,
-        icon: Icon(
-          shot.active ? Icons.stop_rounded : Icons.restart_alt_rounded,
-          size: 18,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (shot.phase == EspressoPhase.brewing)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              s.espressoLiftCupToFinish,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: muted, fontSize: 12),
+            ),
+          ),
+        FilledButton.icon(
+          key: const Key('espresso-finish'),
+          onPressed: shot.active ? c.finishEspresso : c.resetEspresso,
+          icon: Icon(
+            shot.active ? Icons.stop_rounded : Icons.restart_alt_rounded,
+            size: 18,
+          ),
+          label: Text(label),
         ),
-        label: Text(label),
-      ),
+      ],
     );
   }
 }
@@ -555,10 +568,12 @@ class _DoseCard extends StatelessWidget {
 class _ShotMetrics extends StatelessWidget {
   final EspressoSession shot;
   final double seconds, flow;
+  final bool showCompletion;
   const _ShotMetrics({
     required this.shot,
     required this.seconds,
     required this.flow,
+    required this.showCompletion,
   });
 
   @override
@@ -663,10 +678,13 @@ class _ShotMetrics extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
+                flex: 2,
                 child: BrewTimer(
                   seconds: seconds,
                   phase: phase,
                   reached: false,
+                  statusOverride:
+                      showCompletion ? s.espressoPausedResult : null,
                 ),
               ),
               const SizedBox(width: 16),
